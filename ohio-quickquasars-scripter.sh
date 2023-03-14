@@ -21,7 +21,7 @@ nexp=
 suffix=
 extra_opts=
 
-dlas=""             # Can be random or file
+dla=""             # Can be random or file
 metals_qq=""        # Metals can be added by quickquasars or from a file
 metals_file=""
 balprob=0           # BAL (Fiducial is 0.16) probability, empty is default of quickquasars (no BALs).
@@ -47,7 +47,7 @@ function print_config_help() {
     echo "--batch: submit the script as job. DESI env must be loaded."
     echo "--run: runs the script. must be on interactive node and have DESI env loaded."
 
-    echo "--dla: [random or file] (default: ${dlas})"
+    echo "--dla: [random or file] (default: ${dla})"
     echo "--balprob: [number between 0 and 1] add BAL features with the specified probability (default: ${balprob})"
 
     echo "--suffix: [suffix] suffix for the realization if custom parameters are passed."
@@ -117,9 +117,9 @@ seed="62300${realization}"
 sysopt=""
 OPTS_QQ="--zmin ${zmin} --zbest --bbflux --seed ${seed} --exptime ${nexp}000 --save-continuum --save-continuum-dwave ${cont_dwave} ${extra_opts}"
 
-if [[ ! -z "${dlas}" ]]; then
+if [[ ! -z "${dla}" ]]; then
     sysopt+="1"
-    OPTS_QQ+=" --dla ${dlas} "
+    OPTS_QQ+=" --dla ${dla} "
 fi
 
 if [[ ! -z "${metals_qq}" ]]; then
