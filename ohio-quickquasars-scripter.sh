@@ -222,6 +222,10 @@ done
 wait
 echo "END"
 
+if [ $SLURM_NODEID -eq 0 ]; then
+    desi_zcatalog -i ${outdir}/spectra-16 -o ${outdir}/zcat.fits --minimal --prefix zbest
+fi
+
 EOF
 
 #Run the job.

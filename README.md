@@ -4,13 +4,19 @@ desi y1 p1d related scripts and version control
 # How to generate Ohio Y1 mocks
 These mocks can be found in `/global/cfs/cdirs/desicollab/users/naimgk/ohio-p1d/v1.2/iron/main/all_v0/v1.2.0`. Related info can be found in [DESI wiki](https://desi.lbl.gov/trac/wiki/LymanAlphaWG/OhioP1DMocks).
 
-- Download and install [qsotools](https://github.com/p-slash/qsotools) package at v2.5 or higher minors if noted.
+- Download and install [qsotools](https://github.com/p-slash/qsotools) package at v2.5 or higher minors if noted at `$SCRIPTDIR`.
 - Have DESIENV ready. DESISIM package used was between Mar 13 and later
 - Create a `$BASEDIR` to store mocks. We will assume Ohio mock version to be v1.2. This will be updated for newer versions of quickquasars.
+
+```shell
+mkdir $BASEDIR
+cd $BASEDIR
+```
+
 - Create folder structure and quickquasars scripts using `ohio-quickquasars-scripter.sh`. You can run `sh ohio-quickquasars-scripter.sh -h` for options.
 
 ```shell
-sh ohio-quickquasars-scripter.sh --realization 0 --version v1.2 --release iron --survey main --catalog all_v0 --nexp 1
+sh $SCRIPTDIR/ohio-quickquasars-scripter.sh --realization 0 --version v1.2 --release iron --survey main --catalog all_v0 --nexp 1
 ```
 
 - Activate your conda environment for qsotools.
@@ -49,6 +55,12 @@ salloc -N 1 -C cpu -q interactive -t 0:25:00
 
 ```shell
 sh v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1/submit-quickquasars-run0.sh
+```
+
+- Produce true DLA catalog if added.
+
+```shell
+python $SCRIPTDIR/getMockTrueDLAcat.py v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1/spectra-16/ v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1 --nproc 128
 ```
 
 ## Seed conventions
