@@ -7,7 +7,8 @@
 nodes=1
 nthreads=128
 time="00:30:00"
-rootdir="/global/cfs/cdirs/desi/users/naimgk/ohio-p1d"
+rootdir="/global/cfs/cdirs/desi/users/$USER/ohio-p1d"
+deltadir="/pscratch/sd/n/$USER/ohio-p1d-analysis"
 # required options
 realization=
 version=
@@ -57,6 +58,7 @@ function print_config_help() {
     echo "--nthreads: [number of threads] (default: ${nthreads})"
     echo "--time: [hh:mm:ss] (default: ${time})"
     echo "--rootdir: rootdir for mocks (default: ${rootdir})"
+    echo "--deltadir: rootdir for delta reductions: (default: ${deltadir})"
     echo "--help | -h : print this help"
 }
 
@@ -83,6 +85,8 @@ function set_config_options() {
         --nodes) nodes="$2"; shift;;
         --nthreads) nthreads="$2"; shift;;
         --time) time="$2"; shift;;
+        --rootdir) rootdir="$2"; shift;;
+        --deltadir) deltadir="$2"; shift;;
         -*) printf 'ERROR: Unknown option: %s\n' "$1"; exit 1;;
         *)  break
         esac
@@ -160,13 +164,18 @@ printf "Saving scripts to ${basedir}\n"
 # file name convention
 # desi-${version}.${sysopt}-${nexp}-${suffix}
 # We do not need nexp in e2e analysis, so it simply says e2e
-outdir="${basedir}/desi-${version:1:1}.${sysopt}-${nexp}${suffix}/"
+foldername="desi-${version:1:1}.${sysopt}-${nexp}${suffix}/"
+outdir="${basedir}/{$foldername}/"
+outdeltadir="${deltadir}/${version}/${release}/${survey}/${catalog}/${version}.${realization}/{$foldername}/"
 runfile="${outdir}/submit-quickquasars-run${realization}.sh"
 
 # make directories to store logs and spectra
 if [[ ! -d $outdir ]]; then
     mkdir -p $outdir
     mkdir -p $idir
+fi
+if [[ ! -d $outdeltadir ]]; then
+    mkdir -p $outdeltadir
 fi
 if [[ ! -d $outdir/logs ]]; then
     mkdir -p $outdir/logs
