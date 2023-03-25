@@ -1,5 +1,9 @@
 import argparse
 
+from desi_y1_p1d.ohio_quickquasars import OhioQuickquasarsJob
+from desi_y1_p1d.ohio_transmissions import OhioTransmissionsJob
+from desi_y1_p1d.qsonic_job import QSOnicJob
+
 
 def get_parser():
     """Constructs the parser needed for the script.
@@ -89,28 +93,32 @@ def main(options=None):
     args = parser.parse_args(options)
     jobid = -1
 
-    transmissions_dir = create_transmission_directory(
-        args, not args.no_transmissions)
+    tr_job = OhioTransmissionsJob(
+        args.rootdir, args.realization, args.version, args.release,
+        args.survey, args.catalog,
+        args.seed_qsotools
+    )
 
-    submitter_fname_lya = create_lya_trans_gen_script(
-        args.realization, transmissions_dir, args.catalog, args.seed_qsotools)
+    jobid = tr_job.schedule(args.batch, create_dir=not args.no_transmissions)
 
-    if args.batch and submitter_fname_lya:
-        jobid = utils.submit_script(submitter_fname_lya)
+    qq_job = OhioQuickquasarsJob(
+        args.rootdir, args.realization, args.version, args.release,
+        args.survey, args.catalog,
+        args.nexp, args.zmin_qso, args.cont_dwave, args.dla, args.bal,
+        args.boring, args.seed_qq, args.suffix
+    )
 
-    sysopt, OPTS_QQ = get_sysopt(args)
-    desibase_dir, outdelta_dir = create_qq_directories(args, sysopt)
-    submitter_fname_qq = create_qq_script(
-        args.realization, transmissions_dir, desibase_dir, OPTS_QQ,
-        args.nodes, args.nthreads, args.time, args.dla,
-        env_command=args.qq_env_command, dep_jobid=jobid)
+    jobid = qq_job.schedule(
+        args.nodes, args.nthreads, args.time, args.batch, args.qq_env_command,
+        dep_jobid=jobid
+    )
 
-    if args.batch:
-        jobid = utils.submit_script(submitter_fname_qq)
+    qsonic_job = QSOnicJob(
+        args.delta_dir,
+        qq_job.interm_path, qq_job.desibase_dir, qq_job.foldername,
+        args.realization,
+        args.wave1, args.wave2, args.forest_w1, args.forest_w2,
+        coadd_arms=True, skip_resomat=False
+    )
 
-    submitter_fname_qsonic = create_qsonic_script(
-        desibase_dir, outdelta_dir, args.wave1, args.wave2,
-        args.forest_w1, args.forest_w2, args.realization, dep_jobid=jobid)
-
-    if args.batch and submitter_fname_qsonic:
-        jobid = utils.submit_script(submitter_fname_qsonic)
+    jobid = qsonic_job.schedule(args.batch, dep_jobid=jobid)
