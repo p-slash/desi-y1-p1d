@@ -81,10 +81,10 @@ def get_parser():
         "--wave2", type=float, default=6600.,
         help="Last observed wavelength edge.")
     qsonic_group.add_argument(
-        "--forest-w1", type=float, default=1050.,
+        "--forest-w1", type=float, default=1040.,
         help="First forest wavelength edge.")
     qsonic_group.add_argument(
-        "--forest-w2", type=float, default=1180.,
+        "--forest-w2", type=float, default=1200.,
         help="Last forest wavelength edge.")
 
     return parser
