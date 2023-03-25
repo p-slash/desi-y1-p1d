@@ -207,12 +207,14 @@ def create_qq_script(
         script_txt, desibase_dir, "quickquasars",
         "source /global/common/software/desi/desi_environment.sh main")
 
+    print(f"Quickquasars script is saved as {submitter_fname}.")
+
     return submitter_fname
 
 
 def create_qsonic_script(
-        realization, desibase_dir, outdeltadir, wave1, wave2,
-        forest_w1, forest_w2, dep_jobid=None,
+        desibase_dir, outdeltadir, wave1, wave2,
+        forest_w1, forest_w2, realization=0, dep_jobid=None,
         coadd_arms=True, skip_resomat=False, time=0.3, nodes=1
 ):
     if outdeltadir is None:
@@ -244,6 +246,8 @@ def create_qsonic_script(
     submitter_fname = utils.save_submitter_script(
         script_txt, outdeltadir, "qsonic-fit", dep_jobid=dep_jobid)
 
+    print(f"QSOnic script is saved as {submitter_fname}.")
+
     return submitter_fname
 
 
@@ -265,8 +269,8 @@ def main():
         jobid = utils.submit_script(submitter_fname_qq)
 
     submitter_fname_qsonic = create_qsonic_script(
-        args.realization, desibase_dir, outdelta_dir, args.wave1, args.wave2,
-        args.forest_w1, args.forest_w2, dep_jobid=jobid)
+        desibase_dir, outdelta_dir, args.wave1, args.wave2,
+        args.forest_w1, args.forest_w2, args.realization, dep_jobid=jobid)
 
     if args.batch and submitter_fname_qsonic:
         jobid = utils.submit_script(submitter_fname_qsonic)

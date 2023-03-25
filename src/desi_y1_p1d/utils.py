@@ -8,8 +8,8 @@ def get_script_header(outdir, jobname, time_txt, nodes):
         "#SBATCH --account=desi\n"
         f"#SBATCH --nodes={nodes}\n"
         f"#SBATCH --time={time_txt}\n"
-        f"#SBATCH --job-name=jobname\n"
-        f"#SBATCH --output={outdir}/lyasim.log\n\n"
+        f"#SBATCH --job-name={jobname}\n"
+        f"#SBATCH --output={outdir}/log-{jobname}.txt\n\n"
     )
 
     return script_txt
@@ -21,7 +21,7 @@ def save_submitter_script(
     script_fname = f"{outdir}/run-{fname_core}.sl"
     submitter_fname = f"{outdir}/submit-{fname_core}.sh"
 
-    if dep_jobid > 0:
+    if dep_jobid and dep_jobid > 0:
         dependency_txt = f"--dependency=afterok:{dep_jobid} "
     else:
         dependency_txt = ""
@@ -38,5 +38,7 @@ def save_submitter_script(
 
 
 def submit_script(submitter_fname):
+    print(f"sh {submitter_fname}...")
     jobid = subprocess.check_output(["sh", submitter_fname])
+    print(f"JobID: {jobid}")
     return jobid
