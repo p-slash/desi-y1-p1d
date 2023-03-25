@@ -17,6 +17,7 @@ def get_parser():
 
     folder_group = parser.add_argument_group("Folder settings")
     qq_group = parser.add_argument_group("Quickquasars settings")
+    trans_group = parser.add_argument_group("Transmission file settings")
     qsonic_group = parser.add_argument_group("QSOnic settings")
     run_group = parser.add_argument_group("SLURM settings")
 
@@ -31,7 +32,10 @@ def get_parser():
     folder_group.add_argument(
         "--survey", default="main", help="Survey")
     folder_group.add_argument(
-        "--catalog", default="all_v0", help="Catalog")
+        "--catalog", help="Catalog",
+        default=("/global/cfs/cdirs/desi/survey/catalogs/Y1/QSO/iron/"
+                 "QSO_cat_iron_main_dark_healpix_v0.fits")
+    )
     folder_group.add_argument(
         "--suffix", default="",
         help="suffix for the realization if custom parameters are passed.")
@@ -43,13 +47,21 @@ def get_parser():
         "--bal", type=float, default=0,
         help="Add BAL features with the specified probability. typical: 0.16")
     qq_group.add_argument(
+        "--qq-env-command", help="Environment command for quickquasars",
+        default="source /global/common/software/desi/desi_environment.sh main")
+    qq_group.add_argument(
         "--boring", action="store_true", help="Boring mocks.")
     qq_group.add_argument("--zmin-qso", type=float, default=1.8, help="Min z")
     qq_group.add_argument(
-        "--seed", default="62300", help="Realization number is concatenated.")
+        "--seed-qq", default="62300",
+        help="Realization number is concatenated to the right.")
     qq_group.add_argument(
         "--cont-dwave", type=float, default=2.0,
         help="True continuum wavelength steps.")
+
+    trans_group.add_argument(
+        "--seed-qsotools", default="332298",
+        help="Realization number is concatenated to the left.")
 
     run_group.add_argument("--nodes", type=int, default=1, help="Nodes")
     run_group.add_argument("--nthreads", type=int, default=128, help="Threads")
@@ -75,7 +87,7 @@ def get_parser():
 
 def get_sysopt(args):
     sysopt = ""
-    rseed = f"{args.seed}{args.realization}"
+    rseed = f"{args.seed_qq}{args.realization}"
     OPTS_QQ = (f"--zmin {args.zmin_qso} --zbest --bbflux --seed {rseed}"
                f" --exptime {args.nexp}000 --save-continuum"
                f" --save-continuum-dwave {args.cont_dwave}")
@@ -110,8 +122,12 @@ def get_sysopt(args):
 
 
 def create_directories(args, sysopt):
+    catalog_short = args.catalog.split('/')[-1]
+    jj = catalog_short.rfind(".fits")
+    catalog_short = catalog_short[:jj]
+
     interm_paths = (f"{args.version}/{args.release}/{args.survey}"
-                    f"/{args.catalog}/{args.version}.{args.realization}")
+                    f"/{catalog_short}/{args.version}.{args.realization}")
     basedir = (f"{args.rootdir}/{interm_paths}")
     transmissions_dir = f"{basedir}/transmissions"
 
@@ -120,10 +136,10 @@ def create_directories(args, sysopt):
 
     # make directories to store logs and spectra
     print("Creating directories:")
-    print(f"- {transmissions_dir}")
-    print(f"- {desibase_dir}")
-    print(f"- {desibase_dir}/logs")
-    print(f"- {desibase_dir}/spectra-16")
+    print(f"+ {transmissions_dir}")
+    print(f"+ {desibase_dir}")
+    print(f"+ {desibase_dir}/logs")
+    print(f"+ {desibase_dir}/spectra-16")
 
     makedirs(transmissions_dir, exist_ok=True)
     makedirs(desibase_dir, exist_ok=True)
@@ -132,8 +148,8 @@ def create_directories(args, sysopt):
 
     if args.delta_dir:
         outdelta_dir = f"{args.delta_dir}/{interm_paths}/{foldername}"
-        print(f"- {outdelta_dir}")
-        print(f"- {outdelta_dir}/results")
+        print(f"+ {outdelta_dir}")
+        print(f"+ {outdelta_dir}/results")
 
         makedirs(outdelta_dir, exist_ok=True)
         makedirs(f"{outdelta_dir}/results", exist_ok=True)
@@ -143,9 +159,32 @@ def create_directories(args, sysopt):
     return transmissions_dir, desibase_dir, outdelta_dir
 
 
+def create_lya_trans_gen(
+        realization, transmissions_dir, catalog, seed_qsotools,
+        dep_jobid=None, time=0.2, nodes=1
+):
+    time_txt = timedelta(hours=time)
+
+    script_txt = utils.get_script_header(
+        transmissions_dir, f"ohio-trans-y1-{realization}", time_txt, nodes)
+
+    script_txt += 'echo "Generating transmission files using qsotools."\n'
+    script_txt += (f"newGenDESILiteMocks.py {transmissions_dir} "
+                   f"--master-file {catalog} --save-qqfile --nproc 128 "
+                   f"--seed {realization}{seed_qsotools}\n")
+
+    submitter_fname = utils.save_submitter_script(
+        script_txt, transmissions_dir, f"gen-trans-{realization}",
+        dep_jobid=dep_jobid)
+
+    print(f"newGenDESILiteMocks script is saved as {submitter_fname}.")
+
+    return submitter_fname
+
+
 def create_qq_script(
         realization, transmissions_dir, desibase_dir, OPTS_QQ,
-        nodes, nthreads, time, dla
+        nodes, nthreads, time, dla, env_command, dep_jobid=None
 ):
     time_txt = timedelta(hours=time)
 
@@ -197,15 +236,12 @@ def create_qq_script(
         command += (f"get-qq-true-dla-catalog {desibase_dir}/spectra-16 "
                     f"{desibase_dir} --nproc {nthreads}\n")
 
-    script_txt += "if [ \\$SLURM_NODEID -eq 0 ]; then\n"
-    script_txt += f"    {command}"
-    script_txt += "fi\n"
-
-    script_txt += "EOF\n\n"
+    script_txt += utils.get_script_text_for_master_node(command)
 
     submitter_fname = utils.save_submitter_script(
         script_txt, desibase_dir, "quickquasars",
-        "source /global/common/software/desi/desi_environment.sh main")
+        env_command=env_command,
+        dep_jobid=dep_jobid)
 
     print(f"Quickquasars script is saved as {submitter_fname}.")
 
@@ -221,10 +257,11 @@ def create_qsonic_script(
         return None
 
     time_txt = timedelta(hours=time)
+    nthreads = nodes * 128
     script_txt = utils.get_script_header(
         outdeltadir, f"qsonic-{realization}", time_txt, nodes)
 
-    command = "srun -n 128 -c 2 qsonic-fit \\\n"
+    command = f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\n"
     command += f"-i {desibase_dir}/spectra-16 \\\n"
     command += f"--catalog {desibase_dir}/zcat.fits \\\n"
     command += f"-o {outdeltadir}/Delta \\\n"
@@ -241,7 +278,6 @@ def create_qsonic_script(
     command += "\n"
 
     script_txt += command
-    script_txt += "EOF\n\n"
 
     submitter_fname = utils.save_submitter_script(
         script_txt, outdeltadir, "qsonic-fit", dep_jobid=dep_jobid)
@@ -261,9 +297,16 @@ def main():
     transmissions_dir, desibase_dir, outdelta_dir = create_directories(
         args, sysopt)
 
+    submitter_fname_lya = create_lya_trans_gen(
+        args.realization, transmissions_dir, args.catalog, args.seed_qsotools)
+
+    if args.batch and submitter_fname_lya:
+        jobid = utils.submit_script(submitter_fname_lya)
+
     submitter_fname_qq = create_qq_script(
         args.realization, transmissions_dir, desibase_dir, OPTS_QQ,
-        args.nodes, args.nthreads, args.time, args.dla)
+        args.nodes, args.nthreads, args.time, args.dla,
+        env_command=args.qq_env_command, dep_jobid=jobid)
 
     if args.batch:
         jobid = utils.submit_script(submitter_fname_qq)
