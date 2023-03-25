@@ -5,13 +5,16 @@ from multiprocessing import Pool
 import numpy as np
 import fitsio
 
-final_dtype = np.dtype([('NHI', 'f8'), ('Z', 'f8'), ('TARGETID', 'i8'), ('DLAID', 'i8')])
+final_dtype = np.dtype([
+    ('NHI', 'f8'), ('Z', 'f8'), ('TARGETID', 'i8'), ('DLAID', 'i8')
+])
 
 
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("Directory", help="Directory for spectra-16.")
-    parser.add_argument("SaveDirectory", help="Directory for to save final catalog.")
+    parser.add_argument(
+        "SaveDirectory", help="Directory for to save final catalog.")
     parser.add_argument("--nproc", type=int, default=None)
     args = parser.parse_args()
 
@@ -37,7 +40,7 @@ def _getDLACat(ftruth):
     newdata['Z'] = dat_dla['Z_DLA']
     newdata['TARGETID'] = dat_dla['TARGETID']
     newdata['DLAID'] = dat_dla['DLAID']
-    
+
     return newdata
 
 
@@ -47,7 +50,7 @@ def main():
     all_truths = glob.glob(f"{args.Directory}/*/*/truth-*.fits*")
 
     numpy_arrs = []
-    
+
     print(f"Iterating over files.")
     with Pool(processes=args.nproc) as pool:
         imap_it = pool.imap(_getDLACat, all_truths)
@@ -63,17 +66,18 @@ def main():
         ndlas += arr.size
 
     print(f"There are {ndlas} DLAs.")
-    
+
     final_data = np.empty(ndlas, dtype=final_dtype)
-    ii=0
+    ii = 0
     for arr in numpy_arrs:
         nrows = arr.size
         if nrows == 0:
             continue
-        final_data[ii:ii+nrows] = arr
+        final_data[ii:ii + nrows] = arr
         ii += nrows
 
-    fdla = fitsio.FITS(f"{args.SaveDirectory}/dla_cat.fits", 'rw', clobber=True)
+    fdla = fitsio.FITS(
+        f"{args.SaveDirectory}/dla_cat.fits", 'rw', clobber=True)
     fdla.write(final_data, extname='DLACAT')
     fdla.close()
 
