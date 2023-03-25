@@ -100,7 +100,9 @@ def create_directories(args, sysopt):
     return indir, outdir, outdeltadir
 
 
-def create_script(realization, indir, outdir, OPTS_QQ, nodes, nthreads, time):
+def create_script(
+        realization, indir, outdir, OPTS_QQ, nodes, nthreads, time, dla
+):
     script_fname = f"{outdir}/execute-quickquasars-run${realization}.sh"
     submitter_fname = f"{outdir}/submit-quickquasars-run${realization}.sh"
     time_txt = timedelta(hours=time)
@@ -153,10 +155,16 @@ def create_script(realization, indir, outdir, OPTS_QQ, nodes, nthreads, time):
     script_txt += "echo 'END'\n\n"
 
     command = (f"desi_zcatalog -i {outdir}/spectra-16 -o {outdir}/zcat.fits "
-               "--minimal --prefix zbest")
+               "--minimal --prefix zbest\n")
+
+    if dla:
+        command += (f"get-qq-true-dla-catalog {outdir}/spectra-16 {outdir} "
+                    f"--nproc {nthreads}\n")
+
     script_txt += "if [ $SLURM_NODEID -eq 0 ]; then\n"
-    script_txt += f"    {command}\n"
+    script_txt += f"    {command}"
     script_txt += "fi\n\n"
+
     script_txt += "EOF\n"
 
     with open(submitter_fname, 'w') as f:
