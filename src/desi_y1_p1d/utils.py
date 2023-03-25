@@ -1,6 +1,17 @@
 import subprocess
 
 
+def get_folder_structure(realization, version, release, survey, catalog):
+    catalog_short = catalog.split('/')[-1]
+    jj = catalog_short.rfind(".fits")
+    catalog_short = catalog_short[:jj]
+
+    interm_paths = (f"{version}/{release}/{survey}"
+                    f"/{catalog_short}/{version}.{realization}")
+
+    return interm_paths
+
+
 def get_script_header(outdir, jobname, time_txt, nodes):
     script_txt = (
         "#!/bin/bash -l\n"
