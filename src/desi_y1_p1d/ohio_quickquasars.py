@@ -1,7 +1,8 @@
 import argparse
 from os import makedirs
 from datetime import timedelta
-import subprocess
+
+from desi_y1_p1d import utils
 
 
 def get_parser():
@@ -13,37 +14,61 @@ def get_parser():
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--rootdir", help="Root dir for mocks", required=True)
-    parser.add_argument("--delta-dir", help="for delta reductions")
-    parser.add_argument("--realization", type=int, required=True)
-    parser.add_argument(
+
+    folder_group = parser.add_argument_group("Folder settings")
+    qq_group = parser.add_argument_group("Quickquasars settings")
+    qsonic_group = parser.add_argument_group("QSOnic settings")
+    run_group = parser.add_argument_group("SLURM settings")
+
+    folder_group.add_argument(
+        "--rootdir", help="Root dir for mocks", required=True)
+    folder_group.add_argument("--delta-dir", help="for delta reductions")
+    folder_group.add_argument("--realization", type=int, required=True)
+    folder_group.add_argument(
         "--version", required=True, help="e.g., v1.2")
-    parser.add_argument(
+    folder_group.add_argument(
         "--release", default="iron", help="Release")
-    parser.add_argument(
+    folder_group.add_argument(
         "--survey", default="main", help="Survey")
-    parser.add_argument(
+    folder_group.add_argument(
         "--catalog", default="all_v0", help="Catalog")
-    parser.add_argument(
-        "--nexp", type=int, default=1, help="Number of exposures.")
-    parser.add_argument("--dla", help="Could be 'random' or file.")
-    parser.add_argument(
-        "--bal", type=float, default=0,
-        help="Add BAL features with the specified probability. typical: 0.16")
-    parser.add_argument(
+    folder_group.add_argument(
         "--suffix", default="",
         help="suffix for the realization if custom parameters are passed.")
-    parser.add_argument("--nodes", type=int, default=1, help="Nodes")
-    parser.add_argument("--nthreads", type=int, default=128, help="Threads")
-    parser.add_argument("--time", type=float, help="In hours", default=0.5)
-    parser.add_argument("--batch", action="store_true", help="Submit the job.")
-    parser.add_argument("--boring", action="store_true", help="Boring mocks.")
-    parser.add_argument("--zmin-qso", type=float, default=1.8, help="Min z")
-    parser.add_argument(
+
+    qq_group.add_argument(
+        "--nexp", type=int, default=1, help="Number of exposures.")
+    qq_group.add_argument("--dla", help="Could be 'random' or file.")
+    qq_group.add_argument(
+        "--bal", type=float, default=0,
+        help="Add BAL features with the specified probability. typical: 0.16")
+    qq_group.add_argument(
+        "--boring", action="store_true", help="Boring mocks.")
+    qq_group.add_argument("--zmin-qso", type=float, default=1.8, help="Min z")
+    qq_group.add_argument(
         "--seed", default="62300", help="Realization number is concatenated.")
-    parser.add_argument(
+    qq_group.add_argument(
         "--cont-dwave", type=float, default=2.0,
         help="True continuum wavelength steps.")
+
+    run_group.add_argument("--nodes", type=int, default=1, help="Nodes")
+    run_group.add_argument("--nthreads", type=int, default=128, help="Threads")
+    run_group.add_argument("--time", type=float, help="In hours", default=0.5)
+    run_group.add_argument(
+        "--batch", action="store_true", help="Submit the job.")
+
+    qsonic_group.add_argument(
+        "--wave1", type=float, default=3600.,
+        help="First observed wavelength edge.")
+    qsonic_group.add_argument(
+        "--wave2", type=float, default=6600.,
+        help="Last observed wavelength edge.")
+    qsonic_group.add_argument(
+        "--forest-w1", type=float, default=1050.,
+        help="First forest wavelength edge.")
+    qsonic_group.add_argument(
+        "--forest-w2", type=float, default=1180.,
+        help="Last forest wavelength edge.")
 
     return parser
 
@@ -105,26 +130,17 @@ def create_directories(args, sysopt):
     return indir, outdir, outdeltadir
 
 
-def create_script(
+def create_qq_script(
         realization, indir, outdir, OPTS_QQ, nodes, nthreads, time, dla
 ):
-    script_fname = f"{outdir}/execute-quickquasars-run{realization}.sh"
-    submitter_fname = f"{outdir}/submit-quickquasars-run{realization}.sh"
     time_txt = timedelta(hours=time)
 
     command = (f"srun -N 1 -n 1 -c {nthreads} "
                f"quickquasars -i \\$tfiles --nproc {nthreads} "
                f"--outdir {outdir}/spectra-16 {OPTS_QQ}")
 
-    script_txt = (
-        "#!/bin/bash -l\n"
-        "#SBATCH -C cpu\n"
-        "#SBATCH --account=desi\n"
-        f"#SBATCH --nodes={nodes}\n"
-        f"#SBATCH --time={time_txt}\n"
-        f"#SBATCH --job-name=ohio-qq-y1-{realization}\n"
-        f"#SBATCH --output={outdir}/lyasim.log\n\n"
-    )
+    script_txt = utils.get_script_header(
+        outdir, f"ohio-qq-y1-{realization}", time_txt, nodes)
 
     script_txt += 'echo "get list of skewers to run ..."\n\n'
 
@@ -173,31 +189,66 @@ def create_script(
 
     script_txt += "EOF\n\n"
 
-    with open(submitter_fname, 'w') as f:
-        f.write(
-            "source /global/common/software/desi/desi_environment.sh main\n\n")
-        f.write(f"cat > {script_fname} <<EOF\n")
-        f.write(script_txt)
-        f.write(f"sbatch {script_fname}\n")
+    submitter_fname = utils.save_submitter_script(
+        script_txt, outdir, "quickquasars",
+        "source /global/common/software/desi/desi_environment.sh main")
 
     return submitter_fname
 
 
-def submit_qq_script(submitter_fname):
-    subprocess.call(["sh", submitter_fname])
+def create_qsonic_script(
+        realization, indir, outdeltadir, wave1, wave2,
+        forest_w1, forest_w2, dep_jobid=None,
+        coadd_arms=True, skip_resomat=False, time=0.3, nodes=1
+):
+    time_txt = timedelta(hours=time)
+    script_txt = utils.get_script_header(
+        outdeltadir, f"qsonic-{realization}", time_txt, nodes)
+
+    command = "srun -n 128 -c 2 qsonic-fit \\\n"
+    command += f"-i {indir}/spectra-16 \\\n"
+    command += f"--catalog {indir}/zcat.fits \\\n"
+    command += f"-o {outdeltadir}/Delta \\\n"
+    command += f"--mock-analysis \\\n"
+    command += f"--rfdwave 0.8 --skip 0.2 \\\n"
+    command += f"--no-iterations 10 \\\n"
+    command += f"--wave1 {wave1} --wave2 {wave2} \\\n"
+    command += f"--forest-w1 {forest_w1} --forest-w2 {forest_w2}"
+    if coadd_arms:
+        command += " \\\n--coadd-arms"
+    if skip_resomat:
+        command += " \\\n--skip-resomat"
+
+    command += "\n"
+
+    script_txt += command
+    script_txt += "EOF\n\n"
+
+    submitter_fname = utils.save_submitter_script(
+        script_txt, outdeltadir, "qsonic-fit", dep_jobid=dep_jobid)
+
+    return submitter_fname
 
 
 def main():
     parser = get_parser()
     args = parser.parse_args()
+    jobid = -1
 
     sysopt, OPTS_QQ = get_sysopt(args)
 
-    indir, outdir, _ = create_directories(args, sysopt)
+    indir, outdir, outdeltadir = create_directories(args, sysopt)
 
-    submitter_fname = create_script(
+    submitter_fname_qq = create_qq_script(
         args.realization, indir, outdir, OPTS_QQ,
         args.nodes, args.nthreads, args.time, args.dla)
 
     if args.batch:
-        submit_qq_script(submitter_fname)
+        jobid = utils.submit_script(submitter_fname_qq)
+
+    submitter_fname_qsonic = create_qsonic_script(
+        args.realization, indir, outdeltadir, args.wave1, args.wave2,
+        args.forest_w1, args.forest_w2, dep_jobid=jobid)
+
+    if args.batch:
+        jobid = utils.submit_script(submitter_fname_qsonic)
