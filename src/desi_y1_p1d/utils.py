@@ -15,6 +15,14 @@ def get_script_header(outdir, jobname, time_txt, nodes):
     return script_txt
 
 
+def get_script_text_for_master_node(command):
+    script_txt = "if [ \\$SLURM_NODEID -eq 0 ]; then\n"
+    script_txt += f"    {command}"
+    script_txt += "fi\n"
+
+    return script_txt
+
+
 def save_submitter_script(
         script_txt, outdir, fname_core,
         env_command=None, dep_jobid=None):
@@ -31,6 +39,7 @@ def save_submitter_script(
             f.write(f"{env_command}\n\n")
         f.write(f"cat > {script_fname} <<EOF\n")
         f.write(script_txt)
+        f.write("EOF\n\n")
         # f"job_id_current=$(sbatch {scriptname} | tr -dc '0-9')\n"
         f.write(f"sbatch {dependency_txt}{script_fname} | tr -dc '0-9'\n")
 
