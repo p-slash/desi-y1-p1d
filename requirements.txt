@@ -1,2 +1,2 @@
 qsonic
-git+https://github.com/p-slash/qsotools@releases/tag/v2.5#egg=qsotools
+qsotools@git+https://github.com/p-slash/qsotools.git@v2.5
