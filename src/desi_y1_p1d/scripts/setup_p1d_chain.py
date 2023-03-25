@@ -1,8 +1,6 @@
 import argparse
 
-from desi_y1_p1d.ohio_quickquasars import OhioQuickquasarsJob
-from desi_y1_p1d.ohio_transmissions import OhioTransmissionsJob
-from desi_y1_p1d.qsonic_job import QSOnicJob
+from desi_y1_p1d.ohio_jobs import JobChain
 
 
 def get_parser():
@@ -24,7 +22,11 @@ def get_parser():
     folder_group.add_argument(
         "--rootdir", help="Root dir for mocks", required=True)
     folder_group.add_argument("--delta-dir", help="for delta reductions")
-    folder_group.add_argument("--realization", type=int, required=True)
+    folder_group.add_argument(
+        "--rn1", type=int, default=0, help="Starting number for realization")
+    folder_group.add_argument(
+        "--nrealizations", type=int, default=1,
+        help="Number of realization")
     folder_group.add_argument(
         "--version", required=True, help="e.g., v1.2")
     folder_group.add_argument(
@@ -91,34 +93,26 @@ def get_parser():
 def main(options=None):
     parser = get_parser()
     args = parser.parse_args(options)
-    jobid = -1
 
-    tr_job = OhioTransmissionsJob(
-        args.rootdir, args.realization, args.version, args.release,
-        args.survey, args.catalog,
-        args.seed_qsotools
-    )
-
-    jobid = tr_job.schedule(args.batch, create_dir=not args.no_transmissions)
-
-    qq_job = OhioQuickquasarsJob(
-        args.rootdir, args.realization, args.version, args.release,
+    job_chain = JobChain(
+        args.rootdir, args.rn1, args.version, args.release,
         args.survey, args.catalog,
         args.nexp, args.zmin_qso, args.cont_dwave, args.dla, args.bal,
-        args.boring, args.seed_qq, args.suffix
+        args.boring, args.seed_qq,
+        args.qq_env_command, args.suffix,
+        args.seed_qsotools, args.delta_dir, args.wave1, args.wave2,
+        args.forest_w1, args.forest_w2,
     )
 
-    jobid = qq_job.schedule(
-        args.nodes, args.nthreads, args.time, args.batch, args.qq_env_command,
-        dep_jobid=jobid
-    )
+    for jj in range(args.nrealizations):
+        print(f"Setting up JobChain for realization {jj+args.rn1}.")
 
-    qsonic_job = QSOnicJob(
-        args.delta_dir,
-        qq_job.interm_path, qq_job.desibase_dir, qq_job.foldername,
-        args.realization,
-        args.wave1, args.wave2, args.forest_w1, args.forest_w2,
-        coadd_arms=True, skip_resomat=False
-    )
+        job_chain.schedule(
+            args.nodes, args.nthreads, args.time,
+            args.batch, args.no_transmissions
+        )
 
-    jobid = qsonic_job.schedule(args.batch, dep_jobid=jobid)
+        job_chain.inc_realization()
+
+        print(f"Set up JobChain for realization {jj+args.rn1}.")
+        print("==================================================")
