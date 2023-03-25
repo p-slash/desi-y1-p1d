@@ -113,38 +113,52 @@ def create_directories(args, sysopt):
     interm_paths = (f"{args.version}/{args.release}/{args.survey}"
                     f"/{args.catalog}/{args.version}.{args.realization}")
     basedir = (f"{args.rootdir}/{interm_paths}")
-    indir = f"{basedir}/transmissions"
+    transmissions_dir = f"{basedir}/transmissions"
 
     foldername = f"desi-{args.version[1]}.{sysopt}-{args.nexp}{args.suffix}"
-    outdir = f"{basedir}/{foldername}"
-    outdeltadir = f"{args.delta_dir}/{interm_paths}/{foldername}"
+    desibase_dir = f"{basedir}/{foldername}"
 
     # make directories to store logs and spectra
-    makedirs(outdir, exist_ok=True)
-    makedirs(f"{outdir}/logs", exist_ok=True)
-    makedirs(f"{outdir}/spectra-16", exist_ok=True)
-    makedirs(indir, exist_ok=True)
-    makedirs(outdeltadir, exist_ok=True)
-    makedirs(f"{outdeltadir}/results", exist_ok=True)
+    print("Creating directories:")
+    print(f"- {transmissions_dir}")
+    print(f"- {desibase_dir}")
+    print(f"- {desibase_dir}/logs")
+    print(f"- {desibase_dir}/spectra-16")
 
-    return indir, outdir, outdeltadir
+    makedirs(transmissions_dir, exist_ok=True)
+    makedirs(desibase_dir, exist_ok=True)
+    makedirs(f"{desibase_dir}/logs", exist_ok=True)
+    makedirs(f"{desibase_dir}/spectra-16", exist_ok=True)
+
+    if args.delta_dir:
+        outdelta_dir = f"{args.delta_dir}/{interm_paths}/{foldername}"
+        print(f"- {outdelta_dir}")
+        print(f"- {outdelta_dir}/results")
+
+        makedirs(outdelta_dir, exist_ok=True)
+        makedirs(f"{outdelta_dir}/results", exist_ok=True)
+    else:
+        outdelta_dir = None
+
+    return transmissions_dir, desibase_dir, outdelta_dir
 
 
 def create_qq_script(
-        realization, indir, outdir, OPTS_QQ, nodes, nthreads, time, dla
+        realization, transmissions_dir, desibase_dir, OPTS_QQ,
+        nodes, nthreads, time, dla
 ):
     time_txt = timedelta(hours=time)
 
     command = (f"srun -N 1 -n 1 -c {nthreads} "
                f"quickquasars -i \\$tfiles --nproc {nthreads} "
-               f"--outdir {outdir}/spectra-16 {OPTS_QQ}")
+               f"--outdir {desibase_dir}/spectra-16 {OPTS_QQ}")
 
     script_txt = utils.get_script_header(
-        outdir, f"ohio-qq-y1-{realization}", time_txt, nodes)
+        desibase_dir, f"ohio-qq-y1-{realization}", time_txt, nodes)
 
     script_txt += 'echo "get list of skewers to run ..."\n\n'
 
-    script_txt += f"files=\\`ls -1 {indir}/*/*/lya-transmission*.fits*\\`\n"
+    script_txt += f"files=\\`ls -1 {transmissions_dir}/*/*/lya-transmission*.fits*\\`\n"
     script_txt += "nfiles=\\`echo \\$files | wc -w\\`\n"
     script_txt += f"nfilespernode=\\$(( \\$nfiles/{nodes} + 1))\n\n"
 
@@ -168,20 +182,20 @@ def create_qq_script(
     script_txt += f"    command={command}\n\n"
 
     script_txt += "    echo \\$command\n"
-    script_txt += f'    echo "log in {outdir}/logs/node-\\$node.log"\n\n'
+    script_txt += f'    echo "log in {desibase_dir}/logs/node-\\$node.log"\n\n'
 
-    script_txt += f"    \\$command >& {outdir}/logs/node-\\$node.log &\n"
+    script_txt += f"    \\$command >& {desibase_dir}/logs/node-\\$node.log &\n"
     script_txt += "done\n\n"
 
     script_txt += "wait\n"
     script_txt += "echo 'END'\n\n"
 
-    command = (f"desi_zcatalog -i {outdir}/spectra-16 -o {outdir}/zcat.fits "
-               "--minimal --prefix zbest\n")
+    command = (f"desi_zcatalog -i {desibase_dir}/spectra-16 "
+               f"-o {desibase_dir}/zcat.fits --minimal --prefix zbest\n")
 
     if dla:
-        command += (f"get-qq-true-dla-catalog {outdir}/spectra-16 {outdir} "
-                    f"--nproc {nthreads}\n")
+        command += (f"get-qq-true-dla-catalog {desibase_dir}/spectra-16 "
+                    f"{desibase_dir} --nproc {nthreads}\n")
 
     script_txt += "if [ \\$SLURM_NODEID -eq 0 ]; then\n"
     script_txt += f"    {command}"
@@ -190,24 +204,27 @@ def create_qq_script(
     script_txt += "EOF\n\n"
 
     submitter_fname = utils.save_submitter_script(
-        script_txt, outdir, "quickquasars",
+        script_txt, desibase_dir, "quickquasars",
         "source /global/common/software/desi/desi_environment.sh main")
 
     return submitter_fname
 
 
 def create_qsonic_script(
-        realization, indir, outdeltadir, wave1, wave2,
+        realization, desibase_dir, outdeltadir, wave1, wave2,
         forest_w1, forest_w2, dep_jobid=None,
         coadd_arms=True, skip_resomat=False, time=0.3, nodes=1
 ):
+    if outdeltadir is None:
+        return None
+
     time_txt = timedelta(hours=time)
     script_txt = utils.get_script_header(
         outdeltadir, f"qsonic-{realization}", time_txt, nodes)
 
     command = "srun -n 128 -c 2 qsonic-fit \\\n"
-    command += f"-i {indir}/spectra-16 \\\n"
-    command += f"--catalog {indir}/zcat.fits \\\n"
+    command += f"-i {desibase_dir}/spectra-16 \\\n"
+    command += f"--catalog {desibase_dir}/zcat.fits \\\n"
     command += f"-o {outdeltadir}/Delta \\\n"
     command += f"--mock-analysis \\\n"
     command += f"--rfdwave 0.8 --skip 0.2 \\\n"
@@ -237,18 +254,19 @@ def main():
 
     sysopt, OPTS_QQ = get_sysopt(args)
 
-    indir, outdir, outdeltadir = create_directories(args, sysopt)
+    transmissions_dir, desibase_dir, outdelta_dir = create_directories(
+        args, sysopt)
 
     submitter_fname_qq = create_qq_script(
-        args.realization, indir, outdir, OPTS_QQ,
+        args.realization, transmissions_dir, desibase_dir, OPTS_QQ,
         args.nodes, args.nthreads, args.time, args.dla)
 
     if args.batch:
         jobid = utils.submit_script(submitter_fname_qq)
 
     submitter_fname_qsonic = create_qsonic_script(
-        args.realization, indir, outdeltadir, args.wave1, args.wave2,
+        args.realization, desibase_dir, outdelta_dir, args.wave1, args.wave2,
         args.forest_w1, args.forest_w2, dep_jobid=jobid)
 
-    if args.batch:
+    if args.batch and submitter_fname_qsonic:
         jobid = utils.submit_script(submitter_fname_qsonic)
