@@ -1,6 +1,7 @@
 import argparse
 
 from desi_y1_p1d.ohio_jobs import JobChain
+from os import umask
 
 
 def get_parser():
@@ -92,6 +93,12 @@ def get_parser():
 def main(options=None):
     parser = get_parser()
     args = parser.parse_args(options)
+
+    # Mask permissions to
+    # 0 -> no mask for owner
+    # 2 -> remove writing permissions for the group
+    # 7 -> all permissions for others
+    umask(0o027)
 
     job_chain = JobChain(
         args.rootdir, args.rn1, args.version, args.release,

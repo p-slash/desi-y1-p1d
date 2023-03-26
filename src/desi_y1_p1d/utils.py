@@ -23,6 +23,8 @@ def get_script_header(outdir, jobname, time_txt, nodes):
         f"#SBATCH --output={outdir}/log-{jobname}.txt\n\n"
     )
 
+    script_txt += "umask 0027\n\n"
+
     return script_txt
 
 
