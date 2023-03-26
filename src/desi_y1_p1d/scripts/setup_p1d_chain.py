@@ -16,10 +16,14 @@ def get_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
-        "Setting", choices=OhioSettings.all_settings,
+        "Setting", choices=OhioSettings.all_settings, nargs='?',
         help="Base setting for the pipeline. Values can be changed using the options below.")
     parser.add_argument(
-        "--show-settings", action="store_true", help="Shows the setting options and exit.")
+        "--print-current-settings", action="store_true",
+        help="Shows the current settings and exit.")
+    parser.add_argument(
+        "--list-available-settings", action="store_true",
+        help="List available settings and exit.")
 
     folder_group = parser.add_argument_group("Folder settings")
     run_group = parser.add_argument_group("SLURM settings")
@@ -93,10 +97,17 @@ def main(options=None):
     parser = get_parser()
     args = parser.parse_args(options)
 
+    if args.list_available_settings:
+        OhioSettings.list_available_settings()
+        exit(0)
+
+    if args.Setting is None:
+        parser.error("the following arguments are required: Setting")
+
     oh_sett = OhioSettings(args.Setting)
     oh_sett.update_from_args(args)
 
-    if args.show_settings:
+    if args.print_current_settings:
         oh_sett.print()
         exit(0)
 
