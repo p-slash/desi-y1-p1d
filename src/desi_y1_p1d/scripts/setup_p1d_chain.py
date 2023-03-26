@@ -2,7 +2,7 @@ import argparse
 from os import umask
 
 from desi_y1_p1d.ohio_jobs import JobChain
-import desi_y1_p1d.settings as ohio_settings
+from desi_y1_p1d.settings import OhioSettings
 
 
 def get_parser():
@@ -16,7 +16,7 @@ def get_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
-        "Setting", choices=ohio_settings.all_settings,
+        "Setting", choices=OhioSettings.all_settings,
         help="Base setting for the pipeline. Values can be changed using the options below.")
     parser.add_argument(
         "--show-settings", action="store_true", help="Shows the setting options and exit.")
@@ -93,11 +93,11 @@ def main(options=None):
     parser = get_parser()
     args = parser.parse_args(options)
 
-    settings = getattr(ohio_settings, args.Setting)
-    settings = ohio_settings.get_settings_from_args(settings, args)
+    oh_sett = OhioSettings(args.Setting)
+    oh_sett.update_from_args(args)
 
     if args.show_settings:
-        ohio_settings.print_settings(settings)
+        oh_sett.print()
         exit(0)
 
     if not args.rootdir:
@@ -109,6 +109,8 @@ def main(options=None):
     # 2 -> remove writing permissions for the group
     # 7 -> all permissions for others
     umask(0o027)
+
+    settings = oh_sett.settings
 
     job_chain = JobChain(args.rootdir, args.rn1, args.delta_dir, settings)
 

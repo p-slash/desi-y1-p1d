@@ -1,49 +1,27 @@
-desi_main_env = "source /global/common/software/desi/desi_environment.sh main"
-all_settings = ["desi_y1_iron_v0_nosyst"]
+import json
+from pkg_resources import resource_filename
 
-desi_y1_iron_v0_nosyst = {
-    "slurm": {
-        "nodes": 1,
-        "nthreads": 128,
-        "time": 0.5,  # In hours
-        "batch": False,
-    },
 
-    "ohio": {
-        "version": "v1.2",
-        "release": "iron",
-        "survey": "main",
-        "catalog": ("/global/cfs/cdirs/desi/survey/catalogs/Y1/QSO/iron/"
-                    "QSO_cat_iron_main_dark_healpix_v0.fits")
-    },
+class OhioSettings():
+    all_settings = ["desi_y1_iron_v0_nosyst"]
 
-    "quickquasars": {
-        "nexp": 1,
-        "dla": "",
-        "bal": 0,
-        "boring": False,
-        "zmin_qq": 1.8,
-        "env_command_qq": desi_main_env,
-        "base_seed": 62300,  # Realization number is concatenated to the right
-        "cont_dwave": 2.0,
-        "skip": False,
-        "suffix": ""
-    },
+    def __init__(self, setting):
+        fname = resource_filename('desi_y1_p1d', f'configs/{setting}.json')
+        with open(fname) as fp:
+            self.settings = json.load(fp)
 
-    "transmissions": {
-        "base_seed": 332298,  # Realization number is concatenated to the left
-        "skip": False
-    },
+    def update_from_args(self, args):
+        args_dict = vars(args)
 
-    "qsonic": {
-        "wave1": 3600., "wave2": 6600.,
-        "forest_w1": 1040., "forest_w2": 1200.,
-        "cont_order": 1,
-        "coadd_arms": True,
-        "skip_resomat": False,
-        "suffix": "-co1"
-    }
-}
+        for prg, prg_dict in self.settings.items():
+            prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
+
+    def print(self):
+        for prg, prg_dict in self.settings.items():
+            print(prg)
+            for key, value in prg_dict.items():
+                print(f"  {key}: {value}")
+            print("---------------------")
 
 
 _key_map = {
@@ -95,21 +73,3 @@ def _update_prg_dict(prg, prg_dict, args_dict):
               "but didn't change the suffix to distinguish.")
 
     return prg_dict
-
-
-def get_settings_from_args(sett, args):
-    args_dict = vars(args)
-    new_sett = sett.copy()
-
-    for prg, prg_dict in new_sett.items():
-        prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
-
-    return new_sett
-
-
-def print_settings(sett):
-    for prg, prg_dict in sett.items():
-        print(prg)
-        for key, value in prg_dict.items():
-            print(f"  {key}: {value}")
-        print("---------------------")
