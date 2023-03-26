@@ -3,7 +3,7 @@ from pkg_resources import resource_filename
 
 
 class OhioSettings():
-    all_settings = ["desi_y1_iron_v0_nosyst"]
+    all_settings = ["mock_y1_iron_v0_nosyst"]
 
     def __init__(self, setting):
         fname = resource_filename('desi_y1_p1d', f'configs/{setting}.json')
