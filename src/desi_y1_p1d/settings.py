@@ -39,6 +39,8 @@ desi_y1_iron_v0_nosyst = {
         "wave1": 3600., "wave2": 6600.,
         "forest_w1": 1040., "forest_w2": 1200.,
         "cont_order": 1,
+        "coadd_arms": True,
+        "skip_resomat": False,
         "suffix": ""
     }
 }
