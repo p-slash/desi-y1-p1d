@@ -1,68 +1,43 @@
-# desi-y1-p1d
-desi y1 p1d related scripts and version control
+DESI Y1 P1D related scripts and version control.
 
-# How to generate Ohio Y1 mocks
-These mocks can be found in `/global/cfs/cdirs/desicollab/users/naimgk/ohio-p1d/v1.2/iron/main/all_v0/v1.2.0`. Related info can be found in [DESI wiki](https://desi.lbl.gov/trac/wiki/LymanAlphaWG/OhioP1DMocks).
-
-- Download and install [qsotools](https://github.com/p-slash/qsotools) package at v2.5 or higher minors if noted at `$SCRIPTDIR`.
-- Have DESIENV ready. DESISIM package used was between Mar 13 and later
-- Create a `$BASEDIR` to store mocks. We will assume Ohio mock version to be v1.2. This will be updated for newer versions of quickquasars.
-
+# Installation
+Install directly from GitHub:
 ```shell
-mkdir $BASEDIR
-cd $BASEDIR
+pip install desi_y1_p1d@git+https://github.com/p-slash/desi_y1_p1d.git
+```
++ To install a specific version, add for example `@v0.1` at the end.
++ This will automatically install [qsotools](https://github.com/p-slash/qsotools), [qsonic](https://qsonic.readthedocs.io/en/stable/installation.html) and their requirements which include `numpy, scipy, mpi4py, iminuit, ...`. However, it could be better if you setup your own environment first. Pay specific attention to `mpi4py` package that qsonic needs. Follow these [instructions](https://docs.nersc.gov/development/languages/python/parallel-python/#mpi4py-in-your-custom-conda-environment) for NERSC.
++ You are responsible for the DESI environment, which should not be a problem on NERSC.
+
+# Usage for mocks
+`setup-ohio-chain` program is responsible for creating job scripts and chain scheduling them on NERSC Perlmutter. To streamline and version control the pipeline, certain settings are set within the package. Intended usage is to specify which settings to use. See avaliable settings in this [folder](src/desi_y1_p1d/configs/) or list them:
+```shell
+setup-ohio-chain --list-available-settings
+```
+You also need to set the following options:
++ `--rootdir`: directory to save the mock spectra. It will create the correct folder structure within this.
++ `--delta-dir`: directory to save the delta reductions. It will again create the correct folder structure.
++ `--rn1`: starting value for the realization. default: 0
++ `--nrealizations`: number of realizations. default: 1
+
+*Example:* Create scripts for 10 Iron v0 realizations without any systematics and queue them.
+```shell
+setup-ohio-chain mock_y1_iron_v0_nosyst --rootdir $PSCRATCH/ohio-mocks --delta-dir $PSCRATCH/ohio-deltas --nrealizations 10 --batch
 ```
 
-- Create folder structure and quickquasars scripts using `ohio-quickquasars-scripter.sh`. You can run `sh ohio-quickquasars-scripter.sh -h` for options.
-
+You can change any option by providing a value in argument. However, you should also provide suffix(es) to distinguish these runs. To see the help and all options you can change:
 ```shell
-sh $SCRIPTDIR/ohio-quickquasars-scripter.sh --realization 0 --version v1.2 --release iron --survey main --catalog all_v0 --nexp 1
+setup-ohio-chain -h
+```
+To look into the details of your settings without running anything:
+```shell
+setup-ohio-chain [SETTING] --print-current-settings [other options can be passed.]
 ```
 
-- Activate your conda environment for qsotools.
+Finally, you can skip creating and batching scripts for transmissions files and/or quickquasars using `--no-transmissions` and `--skip-qq` options.
 
-```shell
-module load python
-conda activate lya
-```
 
-- Allocate an interactive node.
 
-```shell
-salloc -N 1 -C cpu -q interactive -t 0:10:00
-```
+# Legacy code
+See [this folder](etc/) for reference scripts and steps taken.
 
-- Generate transmission files with qsotools. Need a quasar catalog. This should take less than 5 minutes. Default seed is 332298.
-
-```shell
-newGenDESILiteMocks.py v1.2/iron/main/all_v0/v1.2.0/transmissions/ --master-file /global/cfs/cdirs/desi/survey/catalogs/Y1/QSO/iron/QSO_cat_iron_main_dark_healpix_v0.fits --save-qqfile --nproc 128 --seed 0332298
-```
-
-- Exit this interactive shell and deactivate your conda environment.
-- Load the DESI environment:
-
-```shell
-source /global/common/software/desi/desi_environment.sh main
-```
-
-- Allocate an interactive node.
-
-```shell
-salloc -N 1 -C cpu -q interactive -t 0:25:00
-```
-
-- Run quickquasars.
-
-```shell
-sh v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1/submit-quickquasars-run0.sh
-```
-
-- Produce true DLA catalog if added.
-
-```shell
-python $SCRIPTDIR/getMockTrueDLAcat.py v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1/spectra-16/ v1.2/iron/main/all_v0/v1.2.0/desi-1.5-1 --nproc 128
-```
-
-## Seed conventions
-- `ohio-quickquasars-scripter.sh` has the following seed convention: `seed="62300${realization}"`.
-- Transmissions files from `newGenDESILiteMocks.py` should have the following seed convention: `seed="${realization}332298"`.
