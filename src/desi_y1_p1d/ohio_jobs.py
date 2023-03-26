@@ -142,7 +142,7 @@ class OhioQuickquasarsJob():
         script_txt += '    tfiles=\\`echo \\$files | cut -d " " -f \\${first}-\\${last}\\`\n'
         script_txt += "    first=\\$(( \\$first + \\$nfilespernode ))\n"
         script_txt += "    last=\\$(( \\$last + \\$nfilespernode ))\n"
-        script_txt += f"    command={command}\n\n"
+        script_txt += f'    command="{command}"\n\n'
 
         script_txt += "    echo \\$command\n"
         script_txt += f'    echo "log in {self.desibase_dir}/logs/node-\\$node.log"\n\n'
