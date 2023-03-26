@@ -61,6 +61,6 @@ def save_submitter_script(
 
 def submit_script(submitter_fname):
     print(f"sh {submitter_fname}...")
-    jobid = subprocess.check_output(["sh", submitter_fname])
+    jobid = int(subprocess.check_output(["sh", submitter_fname]))
     print(f"JobID: {jobid}")
-    return int(jobid)
+    return jobid
