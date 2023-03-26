@@ -120,11 +120,11 @@ class OhioQuickquasarsJob():
 
         script_txt += "first=1\n"
         script_txt += "last=\\$nfilespernode\n"
-        script_txt += "for node in \\`seq $nodes\\` ; do\n"
+        script_txt += f"for node in \\`seq {nodes}\\` ; do\n"
         script_txt += "    echo 'starting node \\$node'\n\n"
 
         script_txt += "    # list of files to run\n"
-        script_txt += "    if (( \\$node == $nodes )) ; then\n"
+        script_txt += f"    if (( \\$node == {nodes} )) ; then\n"
         script_txt += "        last=""\n"
         script_txt += "    fi\n"
         script_txt += "    echo \\${first}-\\${last}\n"
@@ -318,19 +318,19 @@ class QSOnicJob():
         script_txt = utils.get_script_header(
             self.outdelta_dir, f"qsonic-{self.realization}", time_txt, nodes)
 
-        command = f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\n"
-        command += f"-i {self.desibase_dir}/spectra-16 \\\n"
-        command += f"--catalog {self.desibase_dir}/zcat.fits \\\n"
-        command += f"-o {self.outdelta_dir} \\\n"
-        command += f"--mock-analysis \\\n"
-        command += f"--rfdwave 0.8 --skip 0.2 \\\n"
-        command += f"--no-iterations 10 \\\n"
-        command += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\n"
+        command = f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\\\n"
+        command += f"-i {self.desibase_dir}/spectra-16 \\\\\n"
+        command += f"--catalog {self.desibase_dir}/zcat.fits \\\\\n"
+        command += f"-o {self.outdelta_dir} \\\\\n"
+        command += f"--mock-analysis \\\\\n"
+        command += f"--rfdwave 0.8 --skip 0.2 \\\\\n"
+        command += f"--no-iterations 10 \\\\\n"
+        command += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
         command += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
         if self.coadd_arms:
-            command += " \\\n--coadd-arms"
+            command += " \\\\\n--coadd-arms"
         if self.skip_resomat:
-            command += " \\\n--skip-resomat"
+            command += " \\\\\n--skip-resomat"
 
         command += "\n\n"
 
