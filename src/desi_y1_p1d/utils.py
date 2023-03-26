@@ -12,11 +12,12 @@ def get_folder_structure(realization, version, release, survey, catalog):
     return interm_paths
 
 
-def get_script_header(outdir, jobname, time_txt, nodes):
+def get_script_header(outdir, jobname, time_txt, nodes, queue="regular"):
     script_txt = (
         "#!/bin/bash -l\n"
         "#SBATCH -C cpu\n"
         "#SBATCH --account=desi\n"
+        f"#SBATCH -q {queue}\n"
         f"#SBATCH --nodes={nodes}\n"
         f"#SBATCH --time={time_txt}\n"
         f"#SBATCH --job-name={jobname}\n"

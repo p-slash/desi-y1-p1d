@@ -69,6 +69,9 @@ def get_parser():
     run_group.add_argument("--nodes", type=int, help="Nodes")
     run_group.add_argument("--nthreads", type=int, help="Threads")
     run_group.add_argument("--time", type=float, help="In hours")
+    run_group.add_argument(
+        "--test", dest="queue", action="store_const", const="debug",
+        help="Run on debug queue.")
     run_group.add_argument("--batch", action="store_true", help="Submit the job.")
 
     qsonic_group.add_argument(
