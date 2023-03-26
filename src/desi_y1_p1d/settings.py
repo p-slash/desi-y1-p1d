@@ -41,7 +41,7 @@ desi_y1_iron_v0_nosyst = {
         "cont_order": 1,
         "coadd_arms": True,
         "skip_resomat": False,
-        "suffix": ""
+        "suffix": "-co1"
     }
 }
 
@@ -77,6 +77,7 @@ def _map_prgkey_to_argkey(key, prg):
 def _update_prg_dict(prg, prg_dict, args_dict):
     is_modified = False
     is_suffix_in = "suffix" in prg_dict
+    current_suffix = prg_dict.get("suffix")
 
     for key in prg_dict.keys():
         arg_key = _map_prgkey_to_argkey(key, prg)
@@ -89,9 +90,9 @@ def _update_prg_dict(prg, prg_dict, args_dict):
         prg_dict[key] = args_dict[arg_key]
         is_modified = True
 
-    if is_modified and is_suffix_in and not prg_dict["suffix"]:
+    if is_modified and is_suffix_in and prg_dict["suffix"] == current_suffix:
         print(f"Warning: you have changed default settings of {prg}, "
-              "but didn't provide suffix to distinguish.")
+              "but didn't change the suffix to distinguish.")
 
     return prg_dict
 

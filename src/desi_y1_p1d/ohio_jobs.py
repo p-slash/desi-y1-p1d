@@ -6,29 +6,27 @@ from desi_y1_p1d import utils
 
 
 class OhioQuickquasarsJob():
-    def __init__(
-            self, rootdir, realization, version, release, survey, catalog,
-            nexp, zmin_qso, cont_dwave, dla, bal, boring, seed_base,
-            qq_env_command, suffix=""
-    ):
+    def __init__(self, rootdir, realization, settings):
         self.rootdir = rootdir
         self.realization = realization
-        self.version = version
-        self.release = release
-        self.survey = survey
-        self.catalog = catalog
-        self.nexp = nexp
-        self.exptime = f"{nexp}000"
-        self.zmin_qso = zmin_qso
-        self.cont_dwave = cont_dwave
-        self.dla = dla
-        self.bal = bal
-        self.boring = boring
-        self.seed_base = seed_base
-        self.seed = f"{seed_base}{self.realization}"
-        self.env_command = qq_env_command
-        self.suffix = suffix
 
+        self.version = settings['ohio']['version']
+        self.release = settings['ohio']['release']
+        self.survey = settings['ohio']['survey']
+        self.catalog = settings['ohio']['catalog']
+
+        self.nexp = settings['quickquasars']['nexp']
+        self.zmin_qq = settings['quickquasars']['zmin_qq']
+        self.cont_dwave = settings['quickquasars']['cont_dwave']
+        self.dla = settings['quickquasars']['dla']
+        self.bal = settings['quickquasars']['bal']
+        self.boring = settings['quickquasars']['boring']
+        self.seed_base = settings['quickquasars']['base_seed']
+        self.env_command = settings['quickquasars']['env_command_qq']
+        self.suffix = settings['quickquasars']['suffix']
+
+        self.exptime = f"{self.nexp}000"
+        self.seed = f"{self.seed_base}{self.realization}"
         self.set_sysopt()
 
         self.foldername = f"desi-{self.version[1]}.{self.sysopt}-{self.nexp}{self.suffix}"
@@ -52,7 +50,7 @@ class OhioQuickquasarsJob():
 
     def set_sysopt(self):
         sysopt = ""
-        OPTS_QQ = (f"--zmin {self.zmin_qso} --zbest --bbflux --seed {self.seed}"
+        OPTS_QQ = (f"--zmin {self.zmin_qq} --zbest --bbflux --seed {self.seed}"
                    f" --exptime {self.exptime} --save-continuum"
                    f" --save-continuum-dwave {self.cont_dwave}")
 
@@ -182,18 +180,17 @@ class OhioQuickquasarsJob():
 
 
 class OhioTransmissionsJob():
-    def __init__(
-            self, rootdir, realization, version, release, survey, catalog,
-            seed_base
-    ):
+    def __init__(self, rootdir, realization, settings):
         self.rootdir = rootdir
         self.realization = realization
-        self.version = version
-        self.release = release
-        self.survey = survey
-        self.catalog = catalog
-        self.seed_base = seed_base
-        self.seed = f"{self.realization}{seed_base}"
+
+        self.version = settings['ohio']['version']
+        self.release = settings['ohio']['release']
+        self.survey = settings['ohio']['survey']
+        self.catalog = settings['ohio']['catalog']
+
+        self.seed_base = settings['transmissions']['base_seed']
+        self.seed = f"{self.realization}{self.seed_base}"
 
         self._set_dirs()
         self.submitter_fname = None
@@ -248,7 +245,7 @@ class OhioTransmissionsJob():
         if skip:
             self.submitter_fname = None
         else:
-            self.create_script(dep_jobid)
+            self.create_script(dep_jobid=dep_jobid)
 
         jobid = -1
         if batch and self.submitter_fname:
@@ -262,8 +259,7 @@ class OhioTransmissionsJob():
 class QSOnicJob():
     def __init__(
             self, rootdir, interm_path, desibase_dir, foldername,
-            realization, wave1, wave2, forest_w1, forest_w2, cont_order,
-            coadd_arms=True, skip_resomat=False
+            realization, qsonic_settings
     ):
         self.rootdir = rootdir
         self.interm_path = interm_path
@@ -271,15 +267,16 @@ class QSOnicJob():
         self.foldername = foldername
         self.realization = realization
 
-        self.wave1 = wave1
-        self.wave2 = wave2
-        self.forest_w1 = forest_w1
-        self.forest_w2 = forest_w2
-        self.cont_order = cont_order
-        self.coadd_arms = coadd_arms
-        self.skip_resomat = skip_resomat
+        self.wave1 = qsonic_settings['wave1']
+        self.wave2 = qsonic_settings['wave2']
+        self.forest_w1 = qsonic_settings['forest_w1']
+        self.forest_w2 = qsonic_settings['forest_w2']
+        self.cont_order = qsonic_settings['cont_order']
+        self.coadd_arms = qsonic_settings['coadd_arms']
+        self.skip_resomat = qsonic_settings['skip_resomat']
+        self.suffix = qsonic_settings['suffix']
 
-        self.delta_dir = f"Delta-co{self.cont_order}"
+        self.delta_dir = f"Delta{self.suffix}"
 
         self._set_outdelta_dir()
         self.submitter_fname = None
@@ -356,7 +353,7 @@ class QSOnicJob():
         if skip:
             self.submitter_fname = None
         else:
-            self.create_script(dep_jobid)
+            self.create_script(dep_jobid=dep_jobid)
 
         jobid = -1
         if batch and self.submitter_fname:
@@ -373,35 +370,26 @@ class QmleJob():
 
 class JobChain():
     def __init__(
-            self, rootdir, realization, version, release, survey, catalog,
-            nexp, zmin_qso, cont_dwave, dla, bal, boring, seed_base_qq,
-            qq_env_command, suffix,
-            seed_base_qsotools, delta_dir, wave1, wave2, forest_w1, forest_w2, cont_order,
-            coadd_arms=True, skip_resomat=False
+            self, rootdir, realization, delta_dir, settings
     ):
-        self.tr_job = OhioTransmissionsJob(
-            rootdir, realization, version, release,
-            survey, catalog,
-            seed_base_qsotools
-        )
+        self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
 
-        self.qq_job = OhioQuickquasarsJob(
-            rootdir, realization, version, release,
-            survey, catalog,
-            nexp, zmin_qso, cont_dwave, dla, bal,
-            boring, seed_base_qq, qq_env_command, suffix
-        )
+        self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
 
         self.qsonic_job = QSOnicJob(
             delta_dir,
             self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
             realization,
-            wave1, wave2, forest_w1, forest_w2, cont_order,
-            coadd_arms=True, skip_resomat=False
+            settings['qsonic']
         )
 
-    def schedule(self, nodes, nthreads, time, batch, no_transmissions, no_quickquasars):
+    def schedule(self, slurm_settings, no_transmissions, no_quickquasars):
         jobid = -1
+
+        nodes = slurm_settings['nodes']
+        nthreads = slurm_settings['nthreads']
+        time = slurm_settings['time']
+        batch = slurm_settings['batch']
 
         jobid = self.tr_job.schedule(batch, skip=no_transmissions)
         jobid = self.qq_job.schedule(nodes, nthreads, time, batch, jobid, no_quickquasars)
