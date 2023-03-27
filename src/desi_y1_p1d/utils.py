@@ -60,10 +60,9 @@ def save_submitter_script(
     if isinstance(dep_jobid, int) and dep_jobid > 0:
         dependency_txt = f"--dependency=afterok:{dep_jobid} "
     elif isinstance(dep_jobid, list) and len(dep_jobid) > 0:
-        valid_deps = [j for j in dep_jobid if j > 0]
+        valid_deps = [str(j) for j in dep_jobid if j > 0]
         if valid_deps:
-            tmp = ':'.join(valid_deps)
-            dependency_txt = f"--dependency=afterok:{tmp} "
+            dependency_txt = f"--dependency=afterok:{':'.join(valid_deps)} "
 
     with open(submitter_fname, 'w') as f:
         if env_command:
