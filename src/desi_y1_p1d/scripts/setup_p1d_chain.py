@@ -66,9 +66,9 @@ def get_parser():
     trans_group.add_argument(
         "--base-seed-transmissions", help="Realization number is concatenated to the left.")
 
-    run_group.add_argument("--nodes", type=int, help="Nodes")
-    run_group.add_argument("--nthreads", type=int, help="Threads")
-    run_group.add_argument("--time", type=float, help="In hours")
+    run_group.add_argument("--nodes-qq", type=int, help="Nodes")
+    run_group.add_argument("--nthreads-qq", type=int, help="Threads")
+    run_group.add_argument("--time-qq", type=float, help="In minutes")
     run_group.add_argument(
         "--test", dest="queue", action="store_const", const="debug",
         help="Run on debug queue.")

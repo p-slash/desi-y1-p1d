@@ -44,12 +44,6 @@ def get_parser():
     run_group.add_argument("--batch", action="store_true", help="Submit the job.")
 
     qsonic_group.add_argument(
-        "--wave1", type=float,
-        help="First observed wavelength edge.")
-    qsonic_group.add_argument(
-        "--wave2", type=float,
-        help="Last observed wavelength edge.")
-    qsonic_group.add_argument(
         "--cont-order", type=int,
         help="Order of continuum fitting polynomial.")
     qsonic_group.add_argument(

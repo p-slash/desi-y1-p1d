@@ -1,4 +1,4 @@
-import json
+from configparser import ConfigParser
 from pkg_resources import resource_filename
 
 
@@ -13,9 +13,9 @@ class OhioMockSettings():
 
     def __init__(self, setting):
         assert (setting in OhioMockSettings.all_settings)
-        fname = resource_filename('desi_y1_p1d', f'configs/mock_{setting}.json')
-        with open(fname) as fp:
-            self.settings = json.load(fp)
+        fname = resource_filename('desi_y1_p1d', f'configs/mock_{setting}.ini')
+        self.settings = ConfigParser()
+        self.settings.read(fname)
 
     def update_from_args(self, args):
         args_dict = vars(args)
@@ -42,40 +42,32 @@ class DesiDataSettings():
 
     def __init__(self, setting):
         assert (setting in DesiDataSettings.all_settings)
-        fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.json')
-        with open(fname) as fp:
-            self.settings = json.load(fp)
+        fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.ini')
+        self.settings = ConfigParser()
+        self.settings.read(fname)
 
     def update_from_args(self, args):
         args_dict = vars(args)
 
         for prg, prg_dict in self.settings.items():
-            if prg != "qsonic":
-                prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
-                continue
-            for forest, forest_dict in prg_dict.items():
-                forest_dict = _update_prg_dict(forest, forest_dict, args_dict)
+            prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
 
     def print(self):
         for prg, prg_dict in self.settings.items():
-            print("=====================")
             print(prg)
-            if prg != "qsonic":
-                for key, value in prg_dict.items():
-                    print(f"  {key}: {value}")
-                continue
-            for forest, forest_dict in prg_dict.items():
-                print(f"  {forest}")
-                for key, value in forest_dict.items():
-                    print(f"    {key}: {value}")
-                print("---------------------")
+            for key, value in prg_dict.items():
+                print(f"  {key}: {value}")
+            print("---------------------")
 
 
 _key_map = {
     "quickquasars": {
         "base_seed": "base_seed_qq",
         "skip": "skip_qq",
-        "suffix": "suffix_qq"
+        "suffix": "suffix_qq",
+        "nodes": "nodes_qq",
+        "nthreads": "nthreads_qq",
+        "time": "time_qq"
     },
 
     "transmissions": {
@@ -112,7 +104,7 @@ def _update_prg_dict(prg, prg_dict, args_dict):
         if not args_dict[arg_key]:
             continue
 
-        prg_dict[key] = args_dict[arg_key]
+        prg_dict[key] = str(args_dict[arg_key])
         is_modified = True
 
     if is_modified and is_suffix_in and prg_dict["suffix"] == current_suffix:
