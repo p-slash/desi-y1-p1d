@@ -15,14 +15,14 @@ pip install desi_y1_p1d@git+https://github.com/p-slash/desi-y1-p1d.git
 setup-ohio-chain --list-available-settings
 ```
 You also need to set the following options:
-+ `--rootdir`: directory to save the mock spectra. It will create the correct folder structure within this.
++ `--root-dir`: directory to save the mock spectra. It will create the correct folder structure within this.
 + `--delta-dir`: directory to save the delta reductions. It will again create the correct folder structure.
 + `--rn1`: starting value for the realization. default: 0
 + `--nrealizations`: number of realizations. default: 1
 
 *Example:* Create scripts for 10 Iron v0 realizations without any systematics and queue them.
 ```shell
-setup-ohio-chain mock_y1_iron_v0_nosyst --rootdir $PSCRATCH/ohio-mocks --delta-dir $PSCRATCH/ohio-deltas --nrealizations 10 --batch
+setup-ohio-chain y1_iron_v0_nosyst --root-dir $PSCRATCH/ohio-mocks --delta-dir $PSCRATCH/ohio-deltas --nrealizations 10 --batch
 ```
 
 You can change any option by providing a value in argument. However, you should also provide suffix(es) to distinguish these runs. To see the help and all options you can change:
@@ -36,6 +36,8 @@ setup-ohio-chain [SETTING] --print-current-settings [other options can be passed
 
 Finally, you can skip creating and batching scripts for transmissions files and/or quickquasars using `--no-transmissions` and `--skip-qq` options.
 
+# Usage for data
+`setup-desi-chain` program is responsible for running Lya, SB1-2-3 analysis back to back. Its usage is similar to the mocks.
 
 
 # Legacy code

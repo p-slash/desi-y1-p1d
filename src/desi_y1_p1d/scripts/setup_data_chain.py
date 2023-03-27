@@ -31,9 +31,8 @@ def get_parser():
 
     folder_group.add_argument("--redux", help="DESI redux spectro.")
     folder_group.add_argument(
-        "--root-dir", required=True,
-        help="Directory that has lookuptables/ and specres-list.txt")
-    folder_group.add_argument("--delta-dir", help="for delta reductions", required=True)
+        "--root-dir", help="Directory that has lookuptables/ and specres-list.txt")
+    folder_group.add_argument("--delta-dir", help="for delta reductions")
     folder_group.add_argument("--release", help="Release")
     folder_group.add_argument("--survey", help="Survey")
     folder_group.add_argument("--catalog", help="Catalog")
@@ -73,6 +72,14 @@ def main(options=None):
     if args.print_current_settings:
         oh_sett.print()
         exit(0)
+
+    if not args.root_dir:
+        print("The following argument is required: --root-dir")
+        exit(1)
+
+    if not args.delta_dir:
+        print("The following argument is required: --delta-dir")
+        exit(1)
 
     # Mask permissions to
     # 0 -> no mask for owner

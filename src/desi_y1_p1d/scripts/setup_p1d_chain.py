@@ -119,8 +119,8 @@ def main(options=None):
         oh_sett.print()
         exit(0)
 
-    if not args.rootdir:
-        print("The following argument is required: --rootdir")
+    if not args.root_dir:
+        print("The following argument is required: --root-dir")
         exit(1)
 
     # Mask permissions to
@@ -131,7 +131,7 @@ def main(options=None):
 
     settings = oh_sett.settings
 
-    job_chain = MockJobChain(args.rootdir, args.rn1, args.delta_dir, settings)
+    job_chain = MockJobChain(args.root_dir, args.rn1, args.delta_dir, settings)
 
     for jj in range(args.nrealizations):
         print(f"Setting up MockJobChain for realization {jj + args.rn1}.")
