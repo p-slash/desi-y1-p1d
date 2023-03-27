@@ -1,7 +1,5 @@
 {
     "slurm": {
-        "nodes": 1,
-        "nthreads": 128,
         "batch": false,
         "queue": "regular"
     },
