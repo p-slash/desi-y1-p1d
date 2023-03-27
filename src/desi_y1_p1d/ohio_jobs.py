@@ -365,6 +365,13 @@ class QSOnicJob():
 
         command += "\n\n"
 
+        command += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-calib \\\\\n"
+        command += f"-i {self.outdelta_dir} \\\\\n"
+        command += f"-o {self.outdelta_dir}/var_stats \\\\\n"
+        command += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
+        command += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
+        command += "\n\n"
+
         script_txt += command
         script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128\n"
         script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128 --snr-cut 1\n"
