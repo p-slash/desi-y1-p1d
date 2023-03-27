@@ -44,9 +44,27 @@ class DesiDataSettings():
     def __init__(self, setting):
         assert (setting in DesiDataSettings.all_settings)
         fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.ini')
+        parser = ConfigParser()
+        parser.optionxform = str
+        parser.read(fname)
+
         self.settings = ConfigParser()
         self.settings.optionxform = str
+
+        default_dict = {}
+        for qsec in ["qsonic", "qmle"]:
+            default_section = dict(parser[f"{qsec}.default"])
+
+            for section in parser.sections():
+                if not section.startswith(qsec):
+                    continue
+
+                default_dict[section] = default_section
+
+        self.settings.read_dict(default_dict)
         self.settings.read(fname)
+        self.settings.remove_section("qsonic.default")
+        self.settings.remove_section("qmle.default")
 
     def update_from_args(self, args):
         args_dict = vars(args)

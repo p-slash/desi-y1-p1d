@@ -571,13 +571,15 @@ class DataJobChain():
 
         self.qsonic_jobs = {}
         self.qmle_jobs = {}
-        for forest in qsonic_sections:
+        for qsection in qsonic_sections:
+            forest = qsection[len("qsonic."):]
+
             self.qsonic_jobs[forest] = QSOnicDataJob(
-                delta_dir, forest, desi_settings, settings, forest)
+                delta_dir, forest, desi_settings, settings, qsection)
             self.qmle_jobs[forest] = QmleJob(
                 rootdir, self.qsonic_jobs[forest].outdelta_dir,
                 f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
-                sysopt=None, settings=settings, section=forest)
+                sysopt=None, settings=settings, section=f"qmle.{forest}")
 
     def schedule(self):
         for forest, qsonic_job in self.qsonic_jobs.items():
