@@ -635,15 +635,17 @@ class DataJobChain():
                     sysopt=None, settings=settings, section=f"qmle.{forest}")
 
     def schedule(self):
+        sq_jobids = {}
+
         for forest, qsonic_job in self.qsonic_jobs.items():
             jobid = qsonic_job.schedule()
 
-            jobid_sq = self.sq_jobs.pop(forest[:-1], None)
-            if jobid_sq:
-                jobid_sq = jobid_sq.schedule()
-            else:
-                jobid_sq = -1
+            sq_key = forest[:-1]
+            sq_job = self.sq_jobs.pop(sq_key, None)
+            if sq_job:
+                sq_jobids[sq_key] = sq_job.schedule()
 
+            jobid_sq = sq_jobids.get(sq_key, -1)
             jobids = [jobid, jobid_sq]
 
             self.qmle_jobs[forest].schedule(dep_jobid=jobids)
