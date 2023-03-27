@@ -1,6 +1,8 @@
 import argparse
+from os import umask
 
-from desi_y1_p1d.ohio_jobs import JobChain
+from desi_y1_p1d.ohio_jobs import DataJobChain
+from desi_y1_p1d.settings import DesiDataSettings
 
 
 def get_parser():
@@ -13,54 +15,78 @@ def get_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    parser.add_argument(
+        "Setting", choices=DesiDataSettings.all_settings, nargs='?',
+        help="Base setting for the pipeline. Values can be changed using the options below.")
+    parser.add_argument(
+        "--print-current-settings", action="store_true",
+        help="Shows the current settings and exit.")
+    parser.add_argument(
+        "--list-available-settings", action="store_true",
+        help="List available settings and exit.")
+
     folder_group = parser.add_argument_group("Folder settings")
-    qsonic_group = parser.add_argument_group("QSOnic settings")
     run_group = parser.add_argument_group("SLURM settings")
+    qsonic_group = parser.add_argument_group("QSOnic settings")
 
-    folder_group.add_argument(
-        "--indir", help="Healpix directory.", required=True)
-    folder_group.add_argument("--delta-dir", help="Base dir for delta reductions")
+    folder_group.add_argument("--redux", help="DESI redux spectro.")
+    folder_group.add_argument("--delta-dir", help="for delta reductions", required=True)
+    folder_group.add_argument("--release", help="Release")
+    folder_group.add_argument("--survey", help="Survey")
+    folder_group.add_argument("--catalog", help="Catalog")
 
-    folder_group.add_argument(
-        "--version", required=True, help="e.g., v1.2")
-    folder_group.add_argument(
-        "--catalog", help="Catalog",
-        default=("/global/cfs/cdirs/desi/survey/catalogs/Y1/QSO/iron/"
-                 "QSO_cat_iron_main_dark_healpix_v0.fits")
-    )
-    folder_group.add_argument(
-        "--suffix", default="",
-        help="suffix for the realization if custom parameters are passed.")
-
-    mask_group = parser.add_argument_group('Masking options')
-
-    mask_group.add_argument(
-        "--sky-mask",
-        help="Sky mask file.")
-    mask_group.add_argument(
-        "--bal-mask", action="store_true",
-        help="Mask BALs (assumes it is in catalog).")
-    mask_group.add_argument(
-        "--dla-mask",
-        help="DLA catalog to mask.")
-
-    run_group.add_argument("--nodes", type=int, default=1, help="Nodes")
-    run_group.add_argument("--nthreads", type=int, default=128, help="Threads")
-    run_group.add_argument("--time", type=float, help="In hours", default=0.5)
+    run_group.add_argument("--nodes", type=int, help="Nodes")
+    run_group.add_argument("--nthreads", type=int, help="Threads")
+    run_group.add_argument("--time", type=float, help="In minutes")
     run_group.add_argument(
-        "--batch", action="store_true", help="Submit the job.")
+        "--test", dest="queue", action="store_const", const="debug",
+        help="Run on debug queue.")
+    run_group.add_argument("--batch", action="store_true", help="Submit the job.")
 
     qsonic_group.add_argument(
-        "--wave1", type=float, default=3600.,
+        "--wave1", type=float,
         help="First observed wavelength edge.")
     qsonic_group.add_argument(
-        "--wave2", type=float, default=6600.,
+        "--wave2", type=float,
         help="Last observed wavelength edge.")
     qsonic_group.add_argument(
-        "--forest-w1", type=float, default=1040.,
-        help="First forest wavelength edge.")
+        "--cont-order", type=int,
+        help="Order of continuum fitting polynomial.")
     qsonic_group.add_argument(
-        "--forest-w2", type=float, default=1200.,
-        help="Last forest wavelength edge.")
+        "--suffix",
+        help="suffix for QSOnic reduction if custom parameters are passed.")
 
     return parser
+
+
+def main(options=None):
+    parser = get_parser()
+    args = parser.parse_args(options)
+
+    if args.list_available_settings:
+        DesiDataSettings.list_available_settings()
+        exit(0)
+
+    if args.Setting is None:
+        parser.error("the following arguments are required: Setting")
+
+    oh_sett = DesiDataSettings(args.Setting)
+    oh_sett.update_from_args(args)
+
+    if args.print_current_settings:
+        oh_sett.print()
+        exit(0)
+
+    # Mask permissions to
+    # 0 -> no mask for owner
+    # 2 -> remove writing permissions for the group
+    # 7 -> all permissions for others
+    umask(0o027)
+
+    settings = oh_sett.settings
+
+    job_chain = DataJobChain(args.delta_dir, settings)
+    print(f"Setting up DataJobChain.")
+    job_chain.schedule(settings['slurm'])
+    print(f"DataJobChain done.")
+    print("==================================================")

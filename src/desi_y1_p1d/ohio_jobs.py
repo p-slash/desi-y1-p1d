@@ -348,7 +348,7 @@ class QSOnicJob():
         script_txt += f"--catalog {self.catalog} \\\\\n"
         script_txt += f"-o {self.outdelta_dir} \\\\\n"
         script_txt += f"--rfdwave 0.8 --skip 0.2 \\\\\n"
-        script_txt += f"--no-iterations 10 \\\\\n"
+        script_txt += f"--no-iterations 20 \\\\\n"
         script_txt += f"--cont-order {self.cont_order} \\\\\n"
         script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
         script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
@@ -453,6 +453,12 @@ class QSOnicDataJob(QSOnicJob):
 class QmleJob():
     """ To be implemented."""
 
+    def __init__(self):
+        pass
+
+    def schedule(self, batch, queue="regular", dep_jobid=None, skip=False):
+        pass
+
 
 class MockJobChain():
     def __init__(
@@ -486,3 +492,26 @@ class MockJobChain():
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
         self.qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
+
+
+class DataJobChain():
+    def __init__(self, delta_dir, settings):
+        desi_settings = settings['desi']
+        qsonic_dicts = settings['qsonic']
+
+        self.qsonic_jobs = {}
+        self.qmle_jobs = {}
+        for forest, qsonic_settings in qsonic_dicts.items():
+            self.qsonic_jobs[forest] = QSOnicDataJob(
+                delta_dir, forest, desi_settings, qsonic_settings)
+            self.qmle_jobs[forest] = QmleJob()
+
+    def schedule(self, slurm_settings):
+        batch = slurm_settings['batch']
+        queue = slurm_settings['queue']
+
+        for forest, qsonic_job in self.qsonic_jobs.items():
+            jobid = qsonic_job.schedule(batch, queue)
+
+            qmle_job = self.qmle_jobs[forest]
+            qmle_job.schedule(batch, queue, dep_jobid=jobid)
