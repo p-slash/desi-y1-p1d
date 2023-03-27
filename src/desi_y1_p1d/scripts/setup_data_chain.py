@@ -30,6 +30,9 @@ def get_parser():
     qsonic_group = parser.add_argument_group("QSOnic settings")
 
     folder_group.add_argument("--redux", help="DESI redux spectro.")
+    folder_group.add_argument(
+        "--root-dir", required=True,
+        help="Directory that has lookuptables/ and specres-list.txt")
     folder_group.add_argument("--delta-dir", help="for delta reductions", required=True)
     folder_group.add_argument("--release", help="Release")
     folder_group.add_argument("--survey", help="Survey")
@@ -79,7 +82,7 @@ def main(options=None):
 
     settings = oh_sett.settings
 
-    job_chain = DataJobChain(args.delta_dir, settings)
+    job_chain = DataJobChain(args.root_dir, args.delta_dir, settings)
     print(f"Setting up DataJobChain.")
     job_chain.schedule()
     print(f"DataJobChain done.")

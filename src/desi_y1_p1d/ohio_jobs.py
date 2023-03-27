@@ -457,7 +457,7 @@ class QmleJob(Job):
             fbase = f"mock-{release}-{sysopt}"
         else:
             release = settings['desi']['release']
-            fbase = f"desi-{release}-{sysopt}"
+            fbase = f"desi-{release}"
 
         oversample = int(self.qmle_settings.get('OversampleRmat', 0))
         deconvolve = float(self.qmle_settings.get('ResoMatDeconvolutionM', 0))
@@ -565,7 +565,7 @@ class MockJobChain():
 
 
 class DataJobChain():
-    def __init__(self, delta_dir, settings):
+    def __init__(self, rootdir, delta_dir, settings):
         desi_settings = settings['desi']
         qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
 
@@ -574,11 +574,13 @@ class DataJobChain():
         for forest in qsonic_sections:
             self.qsonic_jobs[forest] = QSOnicDataJob(
                 delta_dir, forest, desi_settings, settings, forest)
-            self.qmle_jobs[forest] = QmleJob()
+            self.qmle_jobs[forest] = QmleJob(
+                rootdir, self.qsonic_jobs[forest].outdelta_dir,
+                f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
+                sysopt=None, settings=settings, section=forest)
 
     def schedule(self):
         for forest, qsonic_job in self.qsonic_jobs.items():
             jobid = qsonic_job.schedule()
 
-            qmle_job = self.qmle_jobs[forest]
-            qmle_job.schedule(dep_jobid=jobid)
+            self.qmle_jobs[forest].schedule(dep_jobid=jobid)

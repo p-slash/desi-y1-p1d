@@ -32,7 +32,7 @@ def get_parser():
     qsonic_group = parser.add_argument_group("QSOnic settings")
     qmle_group = parser.add_argument_group("QMLE settings")
 
-    folder_group.add_argument("--rootdir", help="Root dir for mocks")
+    folder_group.add_argument("--root-dir", help="Root dir for mocks")
     folder_group.add_argument("--delta-dir", help="for delta reductions")
     folder_group.add_argument("--rn1", type=int, default=0, help="Starting number for realization")
     folder_group.add_argument("--nrealizations", type=int, default=1, help="Number of realization")
