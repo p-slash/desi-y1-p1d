@@ -276,7 +276,7 @@ class OhioTransmissionsJob():
         return jobid
 
 
-class QSOnicJob():
+class QSOnicMockJob():
     def __init__(
             self, rootdir, interm_path, desibase_dir, foldername,
             realization, qsonic_settings
@@ -329,13 +329,13 @@ class QSOnicJob():
 
         return self.outdelta_dir
 
-    def create_script(self, nodes=1, time=0.3, queue="regular", dep_jobid=None):
+    def create_script(self, nodes=1, time=5., queue="regular", dep_jobid=None):
         """ Creates and writes the script for QSOnic run. Uses 128 CPUs per node.
         Sets self.submitter_fname.
 
         Args:
             nodes (int): Number of nodes
-            time (float): Time need in hours.
+            time (float): Time need in minutes.
             dep_jobid (int): Dependent JobID. Defaults to None.
 
         Returns:
@@ -344,7 +344,7 @@ class QSOnicJob():
         if self.outdelta_dir is None:
             return None
 
-        time_txt = timedelta(hours=time)
+        time_txt = timedelta(minutes=time)
         nthreads = nodes * 128
         script_txt = utils.get_script_header(
             self.outdelta_dir, f"qsonic-{self.realization}", time_txt, nodes, queue)
@@ -406,7 +406,7 @@ class QmleJob():
     """ To be implemented."""
 
 
-class JobChain():
+class MockJobChain():
     def __init__(
             self, rootdir, realization, delta_dir, settings
     ):
@@ -414,7 +414,7 @@ class JobChain():
 
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
 
-        self.qsonic_job = QSOnicJob(
+        self.qsonic_job = QSOnicMockJob(
             delta_dir,
             self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
             realization,

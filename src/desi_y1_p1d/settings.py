@@ -2,13 +2,13 @@ import json
 from pkg_resources import resource_filename
 
 
-class OhioSettings():
+class OhioMockSettings():
     all_settings = ["mock_y1_iron_v0_nosyst"]
 
     @staticmethod
     def list_available_settings():
         print("Currently available settings are:")
-        for setting in OhioSettings.all_settings:
+        for setting in OhioMockSettings.all_settings:
             print(f"+ {setting}")
 
     def __init__(self, setting):

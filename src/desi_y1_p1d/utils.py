@@ -1,15 +1,28 @@
 import subprocess
 
 
-def get_folder_structure(realization, version, release, survey, catalog):
+def _get_catalog_short(catalog):
     catalog_short = catalog.split('/')[-1]
     jj = catalog_short.rfind(".fits")
-    catalog_short = catalog_short[:jj]
 
-    interm_paths = (f"{version}/{release}/{survey}"
-                    f"/{catalog_short}/{version}.{realization}")
+    return catalog_short[:jj]
 
-    return interm_paths
+
+def get_folder_structure(realization, version, release, survey, catalog):
+    catalog_short = _get_catalog_short(catalog)
+
+    interm_path = (f"{version}/{release}/{survey}"
+                   f"/{catalog_short}/{version}.{realization}")
+
+    return interm_path
+
+
+def get_folder_structure_data(release, survey, catalog, forest):
+    catalog_short = _get_catalog_short(catalog)
+
+    interm_path = f"{release}/{survey}/{catalog_short}/{forest}"
+
+    return interm_path
 
 
 def get_script_header(outdir, jobname, time_txt, nodes, queue="regular"):

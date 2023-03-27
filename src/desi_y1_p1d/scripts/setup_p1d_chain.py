@@ -1,8 +1,8 @@
 import argparse
 from os import umask
 
-from desi_y1_p1d.ohio_jobs import JobChain
-from desi_y1_p1d.settings import OhioSettings
+from desi_y1_p1d.ohio_jobs import MockJobChain
+from desi_y1_p1d.settings import OhioMockSettings
 
 
 def get_parser():
@@ -16,7 +16,7 @@ def get_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
-        "Setting", choices=OhioSettings.all_settings, nargs='?',
+        "Setting", choices=OhioMockSettings.all_settings, nargs='?',
         help="Base setting for the pipeline. Values can be changed using the options below.")
     parser.add_argument(
         "--print-current-settings", action="store_true",
@@ -101,13 +101,13 @@ def main(options=None):
     args = parser.parse_args(options)
 
     if args.list_available_settings:
-        OhioSettings.list_available_settings()
+        OhioMockSettings.list_available_settings()
         exit(0)
 
     if args.Setting is None:
         parser.error("the following arguments are required: Setting")
 
-    oh_sett = OhioSettings(args.Setting)
+    oh_sett = OhioMockSettings(args.Setting)
     oh_sett.update_from_args(args)
 
     if args.print_current_settings:
@@ -126,15 +126,15 @@ def main(options=None):
 
     settings = oh_sett.settings
 
-    job_chain = JobChain(args.rootdir, args.rn1, args.delta_dir, settings)
+    job_chain = MockJobChain(args.rootdir, args.rn1, args.delta_dir, settings)
 
     for jj in range(args.nrealizations):
-        print(f"Setting up JobChain for realization {jj + args.rn1}.")
+        print(f"Setting up MockJobChain for realization {jj + args.rn1}.")
 
         job_chain.schedule(
             settings['slurm'], settings['transmissions']['skip'], settings['quickquasars']['skip'])
 
         job_chain.inc_realization()
 
-        print(f"JobChain done for realization {jj+args.rn1}.")
+        print(f"MockJobChain done for realization {jj+args.rn1}.")
         print("==================================================")
