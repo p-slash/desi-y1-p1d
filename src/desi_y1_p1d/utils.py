@@ -17,10 +17,10 @@ def get_folder_structure(realization, version, release, survey, catalog):
     return interm_path
 
 
-def get_folder_structure_data(release, survey, catalog, forest):
+def get_folder_structure_data(release, survey, catalog):
     catalog_short = _get_catalog_short(catalog)
 
-    interm_path = f"{release}/{survey}/{catalog_short}/{forest}"
+    interm_path = f"{release}/{survey}/{catalog_short}"
 
     return interm_path
 
