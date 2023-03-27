@@ -5,8 +5,38 @@ from datetime import timedelta
 from desi_y1_p1d import utils
 
 
-class OhioQuickquasarsJob():
+class Job():
+    def __init__(self, settings, section):
+        self.name = section
+        self.nodes = settings.getint(section, 'nodes')
+        self.nthreads = settings.getint(section, 'nthreads')
+        self.time = settings.getfloat(section, 'time')
+        self.queue = settings[section]['queue']
+        self.batch = settings.getboolean(section, 'batch')
+        self.skip = settings.getboolean(section, 'skip', fallback=False)
+
+    def schedule(self, dep_jobid=None):
+        print(f"Setting up a {self.name} job...")
+        self.create_directory(not self.skip)
+
+        if self.skip:
+            self.submitter_fname = None
+        else:
+            self.create_script(dep_jobid)
+
+        jobid = -1
+        if self.batch and self.submitter_fname:
+            jobid = utils.submit_script(self.submitter_fname)
+            print(f"{self.name} job submitted with JobID: {jobid}")
+
+        print("--------------------------------------------------")
+        return jobid
+
+
+class OhioQuickquasarsJob(Job):
     def __init__(self, rootdir, realization, settings):
+        super().__init__(settings, 'quickquasars')
+
         self.rootdir = rootdir
         self.realization = realization
 
@@ -15,13 +45,13 @@ class OhioQuickquasarsJob():
         self.survey = settings['ohio']['survey']
         self.catalog = settings['ohio']['catalog']
 
-        self.nexp = settings['quickquasars']['nexp']
-        self.zmin_qq = settings['quickquasars']['zmin_qq']
-        self.cont_dwave = settings['quickquasars']['cont_dwave']
+        self.nexp = settings.getint('quickquasars', 'nexp')
+        self.zmin_qq = settings.getfloat('quickquasars', 'zmin_qq')
+        self.cont_dwave = settings.getfloat('quickquasars', 'cont_dwave')
         self.dla = settings['quickquasars']['dla']
-        self.bal = settings['quickquasars']['bal']
-        self.boring = settings['quickquasars']['boring']
-        self.seed_base = settings['quickquasars']['base_seed']
+        self.bal = settings.getfloat('quickquasars', 'bal')
+        self.boring = settings.getboolean('quickquasars', 'boring')
+        self.seed_base = settings.getint('quickquasars', 'base_seed')
         self.env_command = settings['quickquasars']['env_command_qq']
         self.suffix = settings['quickquasars']['suffix']
 
@@ -99,43 +129,41 @@ class OhioQuickquasarsJob():
 
         return self.desibase_dir
 
-    def create_script(self, nodes, nthreads, time, queue="regular", dep_jobid=None):
+    def create_script(self, dep_jobid=None):
         """ Creates and writes the script for quickquasars run. Sets self.submitter_fname.
 
         Args:
-            nodes (int): Number of nodes.
-            nthreads (int): Number of threads.
-            time (float): Time need in hours.
             dep_jobid (int): Dependent JobID. Defaults to None.
 
         Returns:
             submitter_fname (str): Filename of the submitter script.
         """
-        time_txt = timedelta(hours=time)
+        time_txt = timedelta(minutes=self.time)
 
-        command = (f"srun -N 1 -n 1 -c {nthreads} "
-                   f"quickquasars -i \\$tfiles --nproc {nthreads} "
+        command = (f"srun -N 1 -n 1 -c {self.nthreads} "
+                   f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
                    f"--outdir {self.desibase_dir}/spectra-16 {self.OPTS_QQ}")
 
         script_txt = utils.get_script_header(
-            self.desibase_dir, f"ohio-qq-y1-{self.realization}", time_txt, nodes, queue)
+            self.desibase_dir, f"ohio-qq-y1-{self.realization}",
+            time_txt, self.nodes, self.queue)
 
         script_txt += 'echo "get list of skewers to run ..."\n\n'
 
         script_txt += f"files=\\`ls -1 {self.transmissions_dir}/*/*/lya-transmission*.fits*\\`\n"
         script_txt += "nfiles=\\`echo \\$files | wc -w\\`\n"
-        script_txt += f"nfilespernode=\\$(( \\$nfiles/{nodes} + 1))\n\n"
+        script_txt += f"nfilespernode=\\$(( \\$nfiles/{self.nodes} + 1))\n\n"
 
         script_txt += 'echo "n files =" \\$nfiles\n'
         script_txt += 'echo "n files per node =" \\$nfilespernode\n\n'
 
         script_txt += "first=1\n"
         script_txt += "last=\\$nfilespernode\n"
-        script_txt += f"for node in \\`seq {nodes}\\` ; do\n"
+        script_txt += f"for node in \\`seq {self.nodes}\\` ; do\n"
         script_txt += "    echo 'starting node \\$node'\n\n"
 
         script_txt += "    # list of files to run\n"
-        script_txt += f"    if (( \\$node == {nodes} )) ; then\n"
+        script_txt += f"    if (( \\$node == {self.nodes} )) ; then\n"
         script_txt += "        last=""\n"
         script_txt += "    fi\n"
         script_txt += "    echo \\${first}-\\${last}\n"
@@ -158,7 +186,7 @@ class OhioQuickquasarsJob():
 
         if self.dla:
             command += (f"get-qq-true-dla-catalog {self.desibase_dir}/spectra-16 "
-                        f"{self.desibase_dir} --nproc {nthreads}\n")
+                        f"{self.desibase_dir} --nproc {self.nthreads}\n")
 
         script_txt += utils.get_script_text_for_master_node(command)
 
@@ -171,26 +199,11 @@ class OhioQuickquasarsJob():
 
         return self.submitter_fname
 
-    def schedule(self, nodes, nthreads, time, batch, queue="regular", dep_jobid=None, skip=False):
-        print("Setting up a quickquasars job...")
-        self.create_directory(not skip)
 
-        if skip:
-            self.submitter_fname = None
-        else:
-            self.create_script(nodes, nthreads, time, queue, dep_jobid)
-
-        jobid = -1
-        if batch and self.submitter_fname:
-            jobid = utils.submit_script(self.submitter_fname)
-            print(f"quickquasars job submitted with JobID: {jobid}")
-
-        print("--------------------------------------------------")
-        return jobid
-
-
-class OhioTransmissionsJob():
+class OhioTransmissionsJob(Job):
     def __init__(self, rootdir, realization, settings):
+        super().__init__(settings, 'transmissions')
+
         self.rootdir = rootdir
         self.realization = realization
 
@@ -199,7 +212,7 @@ class OhioTransmissionsJob():
         self.survey = settings['ohio']['survey']
         self.catalog = settings['ohio']['catalog']
 
-        self.seed_base = settings['transmissions']['base_seed']
+        self.seed_base = settings.getint('transmissions', 'base_seed')
         self.seed = f"{self.realization}{self.seed_base}"
 
         self._set_dirs()
@@ -228,26 +241,25 @@ class OhioTransmissionsJob():
 
         return self.transmissions_dir
 
-    def create_script(self, time=5., queue="regular", dep_jobid=None):
-        """ Creates and writes the script for newGenDESILiteMocks run. Uses 1 node and 128 CPUs.
+    def create_script(self, dep_jobid=None):
+        """ Creates and writes the script for newGenDESILiteMocks run.
         Sets self.submitter_fname.
 
         Args:
-            time (float): Time need in minutes.
             dep_jobid (int): Dependent JobID. Defaults to None.
 
         Returns:
             submitter_fname (str): Filename of the submitter script.
         """
-        time_txt = timedelta(minutes=time)
+        time_txt = timedelta(minutes=self.time)
 
         script_txt = utils.get_script_header(
             self.transmissions_dir, f"ohio-trans-y1-{self.realization}",
-            time_txt, nodes=1, queue=queue)
+            time_txt, nodes=self.nodes, queue=self.queue)
 
         script_txt += 'echo "Generating transmission files using qsotools."\n\n'
         script_txt += (f"newGenDESILiteMocks.py {self.transmissions_dir} "
-                       f"--master-file {self.catalog} --save-qqfile --nproc 128 "
+                       f"--master-file {self.catalog} --save-qqfile --nproc {self.nthreads} "
                        f"--seed {self.seed}\n")
 
         self.submitter_fname = utils.save_submitter_script(
@@ -258,26 +270,11 @@ class OhioTransmissionsJob():
 
         return self.submitter_fname
 
-    def schedule(self, batch, queue="regular", dep_jobid=None, skip=False):
-        print("Setting up a qsotools transmission generation job...")
-        self.create_directory(not skip)
 
-        if skip:
-            self.submitter_fname = None
-        else:
-            self.create_script(queue=queue, dep_jobid=dep_jobid)
-
-        jobid = -1
-        if batch and self.submitter_fname:
-            jobid = utils.submit_script(self.submitter_fname)
-            print(f"qsotools job submitted with JobID: {jobid}")
-
-        print("--------------------------------------------------")
-        return jobid
-
-
-class QSOnicJob():
-    def __init__(self, rootdir, foldername, is_mock, qsonic_settings):
+class QSOnicJob(Job):
+    def __init__(self, rootdir, foldername, is_mock, settings, section):
+        super().__init__(settings, section)
+        qsonic_settings = settings[section]
         self.rootdir = rootdir
         self.foldername = foldername
         self.is_mock = is_mock
@@ -292,7 +289,6 @@ class QSOnicJob():
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings['bal-mask']
         self.sky = qsonic_settings['sky-mask']
-        self.time = qsonic_settings['time']
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -323,13 +319,11 @@ class QSOnicJob():
 
         return self.outdelta_dir
 
-    def create_script(self, nodes=1, queue="regular", dep_jobid=None):
-        """ Creates and writes the script for QSOnic run. Uses 128 CPUs per node.
+    def create_script(self, dep_jobid=None):
+        """ Creates and writes the script for QSOnic run.
         Sets self.submitter_fname.
 
         Args:
-            nodes (int): Number of nodes
-            time (float): Time need in minutes.
             dep_jobid (int): Dependent JobID. Defaults to None.
 
         Returns:
@@ -339,11 +333,10 @@ class QSOnicJob():
             return None
 
         time_txt = timedelta(minutes=self.time)
-        nthreads = nodes * 128
         script_txt = utils.get_script_header(
-            self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, nodes, queue)
+            self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, self.nodes, self.queue)
 
-        script_txt += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\\\n"
+        script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\\\n"
         script_txt += f"-i {self.indir} \\\\\n"
         script_txt += f"--catalog {self.catalog} \\\\\n"
         script_txt += f"-o {self.outdelta_dir} \\\\\n"
@@ -368,7 +361,7 @@ class QSOnicJob():
 
         script_txt += "\n\n"
 
-        script_txt += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-calib \\\\\n"
+        script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
         script_txt += f"-i {self.outdelta_dir} \\\\\n"
         script_txt += f"-o {self.outdelta_dir}/var_stats \\\\\n"
         script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
@@ -386,30 +379,13 @@ class QSOnicJob():
 
         return self.submitter_fname
 
-    def schedule(self, batch, queue="regular", dep_jobid=None, skip=False):
-        print("Setting up a QSOnic transmission generation job...")
-        self.create_directory(not skip)
-
-        if skip:
-            self.submitter_fname = None
-        else:
-            self.create_script(queue=queue, dep_jobid=dep_jobid)
-
-        jobid = -1
-        if batch and self.submitter_fname:
-            jobid = utils.submit_script(self.submitter_fname)
-            print(f"QSOnic job submitted with JobID: {jobid}")
-
-        print("--------------------------------------------------")
-        return jobid
-
 
 class QSOnicMockJob(QSOnicJob):
     def __init__(
             self, rootdir, interm_path, desibase_dir, foldername,
-            realization, qsonic_settings
+            realization, settings, section
     ):
-        super().__init__(rootdir, foldername, True, qsonic_settings)
+        super().__init__(rootdir, foldername, True, settings, section)
         self.interm_path = interm_path
         self.desibase_dir = desibase_dir
         self.realization = realization
@@ -436,8 +412,8 @@ class QSOnicMockJob(QSOnicJob):
 
 
 class QSOnicDataJob(QSOnicJob):
-    def __init__(self, rootdir, forest, desi_settings, qsonic_settings):
-        super().__init__(rootdir, forest, False, qsonic_settings)
+    def __init__(self, rootdir, forest, desi_settings, settings, section):
+        super().__init__(rootdir, forest, False, settings, section)
 
         self.catalog = desi_settings['catalog']
 
@@ -450,13 +426,10 @@ class QSOnicDataJob(QSOnicJob):
         self.submitter_fname = None
 
 
-class QmleJob():
+class QmleJob(Job):
     """ To be implemented."""
 
     def __init__(self):
-        pass
-
-    def schedule(self, batch, queue="regular", dep_jobid=None, skip=False):
         pass
 
 
@@ -472,21 +445,15 @@ class MockJobChain():
             delta_dir,
             self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
             realization,
-            settings['qsonic']
+            settings, 'qsonic'
         )
 
-    def schedule(self, slurm_settings, no_transmissions, no_quickquasars):
+    def schedule(self):
         jobid = -1
 
-        nodes = slurm_settings['nodes']
-        nthreads = slurm_settings['nthreads']
-        time = slurm_settings['time']
-        batch = slurm_settings['batch']
-        queue = slurm_settings['queue']
-
-        jobid = self.tr_job.schedule(batch, queue, skip=no_transmissions)
-        jobid = self.qq_job.schedule(nodes, nthreads, time, batch, queue, jobid, no_quickquasars)
-        jobid = self.qsonic_job.schedule(batch, queue, jobid)
+        jobid = self.tr_job.schedule()
+        jobid = self.qq_job.schedule(jobid)
+        jobid = self.qsonic_job.schedule(jobid)
 
     def inc_realization(self):
         self.tr_job.inc_realization()
@@ -497,21 +464,18 @@ class MockJobChain():
 class DataJobChain():
     def __init__(self, delta_dir, settings):
         desi_settings = settings['desi']
-        qsonic_dicts = settings['qsonic']
+        qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
 
         self.qsonic_jobs = {}
         self.qmle_jobs = {}
-        for forest, qsonic_settings in qsonic_dicts.items():
+        for forest in qsonic_sections:
             self.qsonic_jobs[forest] = QSOnicDataJob(
-                delta_dir, forest, desi_settings, qsonic_settings)
+                delta_dir, forest, desi_settings, settings, forest)
             self.qmle_jobs[forest] = QmleJob()
 
-    def schedule(self, slurm_settings):
-        batch = slurm_settings['batch']
-        queue = slurm_settings['queue']
-
+    def schedule(self):
         for forest, qsonic_job in self.qsonic_jobs.items():
-            jobid = qsonic_job.schedule(batch, queue)
+            jobid = qsonic_job.schedule()
 
             qmle_job = self.qmle_jobs[forest]
-            qmle_job.schedule(batch, queue, dep_jobid=jobid)
+            qmle_job.schedule(dep_jobid=jobid)

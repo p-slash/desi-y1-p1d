@@ -131,8 +131,7 @@ def main(options=None):
     for jj in range(args.nrealizations):
         print(f"Setting up MockJobChain for realization {jj + args.rn1}.")
 
-        job_chain.schedule(
-            settings['slurm'], settings['transmissions']['skip'], settings['quickquasars']['skip'])
+        job_chain.schedule()
 
         job_chain.inc_realization()
 

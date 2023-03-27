@@ -81,6 +81,6 @@ def main(options=None):
 
     job_chain = DataJobChain(args.delta_dir, settings)
     print(f"Setting up DataJobChain.")
-    job_chain.schedule(settings['slurm'])
+    job_chain.schedule()
     print(f"DataJobChain done.")
     print("==================================================")
