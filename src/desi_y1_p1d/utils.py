@@ -56,10 +56,14 @@ def save_submitter_script(
     script_fname = f"{outdir}/run-{fname_core}.sl"
     submitter_fname = f"{outdir}/submit-{fname_core}.sh"
 
-    if dep_jobid and dep_jobid > 0:
+    dependency_txt = ""
+    if isinstance(dep_jobid, int) and dep_jobid > 0:
         dependency_txt = f"--dependency=afterok:{dep_jobid} "
-    else:
-        dependency_txt = ""
+    elif isinstance(dep_jobid, list) and len(dep_jobid) > 0:
+        valid_deps = [j for j in dep_jobid if j > 0]
+
+        if valid_deps:
+            dependency_txt = f"--dependency=afterok:{':'.join(valid_deps)} "
 
     with open(submitter_fname, 'w') as f:
         if env_command:

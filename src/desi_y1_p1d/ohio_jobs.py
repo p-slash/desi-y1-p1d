@@ -1,5 +1,6 @@
 from os import makedirs
 import os.path
+import glob
 from datetime import timedelta
 
 from desi_y1_p1d import utils
@@ -431,23 +432,30 @@ class QSOnicDataJob(QSOnicJob):
         self.submitter_fname = None
 
 
-class QmleJob(Job):
+class LyspeqJob(Job):
     def __init__(
             self, rootdir, outdelta_dir, fnamelist, sysopt,
             settings, section='qmle'
     ):
         super().__init__(settings, section)
+        sb_suff = "-sb" if "SB" in section else ""
         self.qmle_settings = dict(settings[section])
         self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
         self.qmle_settings['FileNameList'] = fnamelist
         self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/../results/")
-        self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables"
+        self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables{sb_suff}"
         self.qmle_settings['FileNameRList'] = f"{rootdir}/specres_list-rmat.txt"
         self.qmle_settings['OutputFileBase'] = self._get_output_fbase(settings, sysopt)
 
         self.config_file = os.path.abspath(
             f"{outdelta_dir}/../config-qmle-{self.qmle_settings['OutputFileBase']}.txt")
+
+        frname = self.qmle_settings['FileNameRList']
+        if not os.path.exists(frname):
+            with open(frname, 'w') as frfile:
+                frfile.write("1\n")
+                frfile.write("1000000 0.1\n")
 
     def _get_output_fbase(self, settings, sysopt):
         if "ohio" in settings.sections():
@@ -496,8 +504,10 @@ class QmleJob(Job):
         with open(self.config_file, 'w') as f:
             f.write(config_txt)
 
-        print(f"QMLE config is saved as {self.config_file}.")
+        print(f"LyspeqJob config is saved as {self.config_file}.")
 
+
+class QmleJob(LyspeqJob):
     def create_script(self, dep_jobid=None):
         self.create_config()
 
@@ -518,7 +528,43 @@ class QmleJob(Job):
             env_command=self.qmle_settings['env_command'],
             dep_jobid=dep_jobid)
 
-        print(f"QMLE script is saved as {self.submitter_fname}.")
+        print(f"QmleJob script is saved as {self.submitter_fname}.")
+
+        return self.submitter_fname
+
+    def needs_sqjob(self):
+        files_exits = True
+        files_exits &= os.path.exists(
+            f"{self.qmle_settings['LookUpTableDir']}/signal_R1000000_dv0.1.dat")
+
+        deriv_files = glob.glob(
+            f"{self.qmle_settings['LookUpTableDir']}/deriv_R1000000_dv0.1*.dat")
+        expected_nk = (
+            int(self.qmle_settings.get("NumberOfLinearBins"))
+            + int(self.qmle_settings.get("NumberOfLog10Bins")))
+        files_exits &= len(deriv_files) == expected_nk
+
+        return not files_exits
+
+
+class SQJob(LyspeqJob):
+    def create_script(self, dep_jobid=None):
+        # self.create_config()
+
+        time_txt = timedelta(minutes=5.)
+
+        script_txt = utils.get_script_header(
+            self.qmle_settings['LookUpTableDir'], "sq-job",
+            time_txt, 1, self.queue)
+
+        script_txt += f"srun -N 1 -n 1 -c 2 CreateSQLookUpTable {self.config_file}\n"
+
+        self.submitter_fname = utils.save_submitter_script(
+            script_txt, self.qmle_settings['LookUpTableDir'], "sq-job",
+            env_command=self.qmle_settings['env_command'],
+            dep_jobid=dep_jobid)
+
+        print(f"SQJob script is saved as {self.submitter_fname}.")
 
         return self.submitter_fname
 
@@ -569,6 +615,7 @@ class DataJobChain():
 
         self.qsonic_jobs = {}
         self.qmle_jobs = {}
+        self.sq_jobs = {}
         for qsection in qsonic_sections:
             forest = qsection[len("qsonic."):]
 
@@ -579,8 +626,24 @@ class DataJobChain():
                 f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
                 sysopt=None, settings=settings, section=f"qmle.{forest}")
 
+            # Treat all SBs the same
+            sq_key = forest[:-1]
+            if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
+                self.sq_jobs[sq_key] = SQJob(
+                    rootdir, self.qsonic_jobs[forest].outdelta_dir,
+                    f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
+                    sysopt=None, settings=settings, section=f"qmle.{forest}")
+
     def schedule(self):
         for forest, qsonic_job in self.qsonic_jobs.items():
             jobid = qsonic_job.schedule()
 
-            self.qmle_jobs[forest].schedule(dep_jobid=jobid)
+            jobid_sq = self.sq_jobs.pop(forest[:-1], None)
+            if jobid_sq:
+                jobid_sq = jobid_sq.schedule()
+            else:
+                jobid_sq = -1
+
+            jobids = [jobid, jobid_sq]
+
+            self.qmle_jobs[forest].schedule(dep_jobid=jobids)
