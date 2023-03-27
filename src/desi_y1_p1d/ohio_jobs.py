@@ -371,9 +371,7 @@ class QSOnicJob(Job):
 
         script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
         script_txt += f"-i . -o ./var_stats \\\\\n"
-        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
-        script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
-        script_txt += "\n\n"
+        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2}\n\n"
 
         script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128\n"
         script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 1\n"
