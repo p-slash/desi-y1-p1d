@@ -3,7 +3,7 @@ from pkg_resources import resource_filename
 
 
 class OhioMockSettings():
-    all_settings = ["mock_y1_iron_v0_nosyst"]
+    all_settings = ["y1_iron_v0_nosyst"]
 
     @staticmethod
     def list_available_settings():
@@ -12,7 +12,37 @@ class OhioMockSettings():
             print(f"+ {setting}")
 
     def __init__(self, setting):
-        fname = resource_filename('desi_y1_p1d', f'configs/{setting}.json')
+        assert (setting in OhioMockSettings.all_settings)
+        fname = resource_filename('desi_y1_p1d', f'configs/mock_{setting}.json')
+        with open(fname) as fp:
+            self.settings = json.load(fp)
+
+    def update_from_args(self, args):
+        args_dict = vars(args)
+
+        for prg, prg_dict in self.settings.items():
+            prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
+
+    def print(self):
+        for prg, prg_dict in self.settings.items():
+            print(prg)
+            for key, value in prg_dict.items():
+                print(f"  {key}: {value}")
+            print("---------------------")
+
+
+class DesiDataSettings():
+    all_settings = ["y1_iron_v0_nosyst"]
+
+    @staticmethod
+    def list_available_settings():
+        print("Currently available settings are:")
+        for setting in DesiDataSettings.all_settings:
+            print(f"+ {setting}")
+
+    def __init__(self, setting):
+        assert (setting in DesiDataSettings.all_settings)
+        fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.json')
         with open(fname) as fp:
             self.settings = json.load(fp)
 
