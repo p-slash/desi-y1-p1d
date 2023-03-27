@@ -1,5 +1,5 @@
 from os import makedirs
-from os.path import join as ospath_join
+import os.path
 from datetime import timedelta
 
 from desi_y1_p1d import utils
@@ -14,6 +14,12 @@ class Job():
         self.queue = settings[section]['queue']
         self.batch = settings.getboolean(section, 'batch')
         self.skip = settings.getboolean(section, 'skip', fallback=False)
+
+    def create_directory(self, create_dir=None):
+        raise NotImplementedError
+
+    def create_script(self, dep_jobid=None):
+        raise NotImplementedError
 
     def schedule(self, dep_jobid=None):
         print(f"Setting up a {self.name} job...")
@@ -68,9 +74,9 @@ class OhioQuickquasarsJob(Job):
         self.interm_path = utils.get_folder_structure(
             self.realization, self.version, self.release, self.survey,
             self.catalog)
-        self.desibase_dir = ospath_join(
+        self.desibase_dir = os.path.join(
             self.rootdir, self.interm_path, self.foldername)
-        self.transmissions_dir = ospath_join(
+        self.transmissions_dir = os.path.join(
             self.rootdir, self.interm_path, "transmissions")
 
     def inc_realization(self):
@@ -223,7 +229,7 @@ class OhioTransmissionsJob(Job):
             self.realization, self.version, self.release, self.survey,
             self.catalog)
 
-        self.transmissions_dir = ospath_join(
+        self.transmissions_dir = os.path.join(
             self.rootdir, self.interm_path, "transmissions")
 
     def inc_realization(self):
@@ -284,10 +290,10 @@ class QSOnicJob(Job):
         self.forest_w1 = qsonic_settings['forest_w1']
         self.forest_w2 = qsonic_settings['forest_w2']
         self.cont_order = qsonic_settings['cont_order']
-        self.coadd_arms = qsonic_settings['coadd_arms']
-        self.skip_resomat = qsonic_settings['skip_resomat']
+        self.coadd_arms = qsonic_settings.getboolean('coadd_arms', fallback=False)
+        self.skip_resomat = qsonic_settings.getboolean('skip_resomat', fallback=False)
         self.dla = qsonic_settings.get("dla-mask", "")
-        self.bal = qsonic_settings['bal-mask']
+        self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
 
         self.suffix = f"-co{self.cont_order}"
@@ -361,16 +367,17 @@ class QSOnicJob(Job):
 
         script_txt += "\n\n"
 
+        script_txt += f"cd {self.outdelta_dir}\n\n"
+
         script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
-        script_txt += f"-i {self.outdelta_dir} \\\\\n"
-        script_txt += f"-o {self.outdelta_dir}/var_stats \\\\\n"
+        script_txt += f"-i . -o ./var_stats \\\\\n"
         script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
         script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
         script_txt += "\n\n"
 
-        script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128\n"
-        script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128 --snr-cut 1\n"
-        script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128 --snr-cut 2\n"
+        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128\n"
+        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 1\n"
+        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 2\n"
 
         self.submitter_fname = utils.save_submitter_script(
             script_txt, self.outdelta_dir, "qsonic-fit", dep_jobid=dep_jobid)
@@ -383,9 +390,9 @@ class QSOnicJob(Job):
 class QSOnicMockJob(QSOnicJob):
     def __init__(
             self, rootdir, interm_path, desibase_dir, foldername,
-            realization, settings, section
+            realization, settings
     ):
-        super().__init__(rootdir, foldername, True, settings, section)
+        super().__init__(rootdir, foldername, True, settings, 'qsonic')
         self.interm_path = interm_path
         self.desibase_dir = desibase_dir
         self.realization = realization
@@ -397,7 +404,7 @@ class QSOnicMockJob(QSOnicJob):
         self.indir = f"{self.desibase_dir}/spectra-16"
         self.catalog = f"{self.desibase_dir}/zcat.fits"
         if self.rootdir:
-            self.outdelta_dir = ospath_join(
+            self.outdelta_dir = os.path.join(
                 self.rootdir, self.interm_path, self.foldername, f"Delta{self.suffix}")
         else:
             self.outdelta_dir = None
@@ -420,23 +427,109 @@ class QSOnicDataJob(QSOnicJob):
         self.indir = f"{desi_settings['redux']}/{desi_settings['release']}/healpix"
         self.interm_path = utils.get_folder_structure_data(
             desi_settings['release'], desi_settings['survey'], self.catalog)
-        self.outdelta_dir = ospath_join(
+        self.outdelta_dir = os.path.join(
             self.rootdir, self.interm_path, self.foldername, f"Delta{self.suffix}")
 
         self.submitter_fname = None
 
 
 class QmleJob(Job):
-    """ To be implemented."""
+    def __init__(
+            self, rootdir, outdelta_dir, fnamelist, sysopt,
+            settings, section='qmle'
+    ):
+        super().__init__(settings, section)
+        self.qmle_settings = dict(settings[section])
+        self.qmle_settings['FileInputDir'] = outdelta_dir
+        # Filenames should relative to outdelta_dir
+        self.qmle_settings['FileNameList'] = fnamelist
+        self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/../results/")
+        self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables"
+        self.qmle_settings['FileNameRList'] = f"{rootdir}/specres_list-rmat.txt"
+        self.qmle_settings['OutputFileBase'] = self._get_output_fbase(settings, sysopt)
 
-    def __init__(self):
-        pass
+        self.config_file = os.path.abspath(
+            f"{outdelta_dir}/../config-qmle-{self.qmle_settings['OutputFileBase']}.txt")
+
+    def _get_output_fbase(self, settings, sysopt):
+        if "ohio" in settings.sections():
+            release = settings['ohio']['release']
+            fbase = f"mock-{release}-{sysopt}"
+        else:
+            release = settings['desi']['release']
+            fbase = f"desi-{release}-{sysopt}"
+
+        oversample = int(self.qmle_settings.get('OversampleRmat', 0))
+        deconvolve = float(self.qmle_settings.get('ResoMatDeconvolutionM', 0))
+        nchunks = int(self.qmle_settings.get('DynamicChunkNumber', 0))
+
+        if oversample > 0:
+            fbase += f"-o{oversample}"
+        if deconvolve > 0:
+            fbase += f"-dc{deconvolve:.2f}"
+        if nchunks > 0:
+            fbase += f"-n{nchunks}"
+
+        return fbase
+
+    def create_directory(self, create_dir=True):
+        if not create_dir:
+            return
+
+        # make directories to store outputs and lookup tables
+        print("Creating directories:")
+        print(f"+ {self.qmle_settings['OutputDir']}")
+        print(f"+ {self.qmle_settings['LookUpTableDir']}")
+
+        makedirs(self.qmle_settings['OutputDir'], exist_ok=True)
+        makedirs(self.qmle_settings['LookUpTableDir'], exist_ok=True)
+
+    def create_config(self):
+        if self.skip:
+            return
+
+        omitted_keys = ["nodes", "nthreads", "batch", "skip", "time", "queue", "env_command"]
+        config_lines = [
+            f"{key} {value}\n"
+            for key, value in self.qmle_settings.items()
+            if key not in omitted_keys
+        ]
+        config_txt = ''.join(config_lines)
+        with open(self.config_file, 'w') as f:
+            f.write(config_txt)
+
+        print(f"QMLE config is saved as {self.config_file}.")
+
+    def create_script(self, dep_jobid=None):
+        self.create_config()
+
+        time_txt = timedelta(minutes=self.time)
+
+        name = f"qmle-{self.qmle_settings['OutputFileBase']}"
+        oneup_dir = os.path.abspath(f"{self.qmle_settings['OutputDir']}/../")
+
+        script_txt = utils.get_script_header(
+            self.qmle_settings['OutputDir'], name,
+            time_txt, self.nodes, self.queue)
+
+        script_txt += (f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
+                       f"LyaPowerEstimate {self.config_file}\n")
+
+        self.submitter_fname = utils.save_submitter_script(
+            script_txt, oneup_dir, name,
+            env_command=self.qmle_settings['env_command'],
+            dep_jobid=dep_jobid)
+
+        print(f"QMLE script is saved as {self.submitter_fname}.")
+
+        return self.submitter_fname
 
 
 class MockJobChain():
     def __init__(
             self, rootdir, realization, delta_dir, settings
     ):
+        self.settings = settings
         self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
 
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
@@ -445,8 +538,13 @@ class MockJobChain():
             delta_dir,
             self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
             realization,
-            settings, 'qsonic'
+            settings
         )
+
+        self.qmle_job = QmleJob(
+            rootdir, self.qsonic_job.outdelta_dir,
+            f"{self.qsonic_job.outdelta_dir}/fname_list.txt",
+            self.qq_job.sysopt, settings)
 
     def schedule(self):
         jobid = -1
@@ -454,11 +552,16 @@ class MockJobChain():
         jobid = self.tr_job.schedule()
         jobid = self.qq_job.schedule(jobid)
         jobid = self.qsonic_job.schedule(jobid)
+        jobid = self.qmle_job.schedule(jobid)
 
     def inc_realization(self):
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
         self.qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
+        self.qmle_job = QmleJob(
+            self.qq_job.rootdir, self.qsonic_job.outdelta_dir,
+            f"{self.qsonic_job.outdelta_dir}/fname_list.txt",
+            self.qq_job.sysopt, self.settings)
 
 
 class DataJobChain():

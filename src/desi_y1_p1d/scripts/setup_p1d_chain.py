@@ -30,6 +30,7 @@ def get_parser():
     qq_group = parser.add_argument_group("Quickquasars settings")
     trans_group = parser.add_argument_group("Transmission file settings")
     qsonic_group = parser.add_argument_group("QSOnic settings")
+    qmle_group = parser.add_argument_group("QMLE settings")
 
     folder_group.add_argument("--rootdir", help="Root dir for mocks")
     folder_group.add_argument("--delta-dir", help="for delta reductions")
@@ -92,6 +93,10 @@ def get_parser():
     qsonic_group.add_argument(
         "--suffix-qsonic",
         help="suffix for QSOnic reduction if custom parameters are passed.")
+
+    qmle_group.add_argument(
+        "--skip-qmle",
+        help="Skip QMLE. Makes sense if you only want to fit the continuum.")
 
     return parser
 

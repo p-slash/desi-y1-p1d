@@ -15,6 +15,7 @@ class OhioMockSettings():
         assert (setting in OhioMockSettings.all_settings)
         fname = resource_filename('desi_y1_p1d', f'configs/mock_{setting}.ini')
         self.settings = ConfigParser()
+        self.settings.optionxform = str
         self.settings.read(fname)
 
     def update_from_args(self, args):
@@ -44,6 +45,7 @@ class DesiDataSettings():
         assert (setting in DesiDataSettings.all_settings)
         fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.ini')
         self.settings = ConfigParser()
+        self.settings.optionxform = str
         self.settings.read(fname)
 
     def update_from_args(self, args):
@@ -77,6 +79,10 @@ _key_map = {
 
     "qsonic": {
         "suffix": "suffix_qsonic"
+    },
+
+    "qmle": {
+        "skip": "skip_qmle"
     }
 }
 
