@@ -1,0 +1,66 @@
+{
+    "slurm": {
+        "nodes": 1,
+        "nthreads": 128,
+        "batch": false,
+        "queue": "regular"
+    },
+
+    "desi": {
+        "redux": "/global/cfs/cdirs/desi/spectro/redux/",
+        "release": "iron",
+        "survey": "main",
+        "catalog": "/global/cfs/cdirs/desi/survey/catalogs/Y1/QSO/iron/QSO_cat_iron_main_dark_healpix_v0.fits"
+    },
+
+    "qsonic": {
+        "Lya": {
+            "time": 20.0,
+            "wave1": 3600.0, "wave2": 6600.0,
+            "forest_w1": 1040.0, "forest_w2": 1200.0,
+            "cont_order": 1,
+            "coadd_arms": true,
+            "skip_resomat": false,
+            "dla-mask": "",
+            "bal-mask": false,
+            "sky-mask": "",
+            "suffix": "",
+        },
+
+        "SB1": {
+            "time": 30.0,
+            "wave1": 3600.0, "wave2": 6600.0,
+            "forest_w1": 1268.0, "forest_w2": 1380.0,
+            "cont_order": 1,
+            "coadd_arms": true,
+            "skip_resomat": false,
+            "bal-mask": false,
+            "sky-mask": "",
+            "suffix": ""
+        },
+
+        "SB2": {
+            "time": 30.0,
+            "wave1": 3600.0, "wave2": 6600.0,
+            "forest_w1": 1409.0, "forest_w2": 1523.0,
+            "cont_order": 1,
+            "coadd_arms": true,
+            "skip_resomat": false,
+            "bal-mask": false,
+            "sky-mask": "",
+            "suffix": ""
+        },
+
+        "SB3": {
+            "time": 30.0,
+            "wave1": 3600.0, "wave2": 6600.0,
+            "forest_w1": 1600.0, "forest_w2": 1800.0,
+            "cont_order": 1,
+            "coadd_arms": true,
+            "skip_resomat": false,
+            "bal-mask": false,
+            "sky-mask": "",
+            "suffix": ""
+        }
+    }
+}

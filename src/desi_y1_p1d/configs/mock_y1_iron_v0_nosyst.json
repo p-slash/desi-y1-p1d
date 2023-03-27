@@ -33,11 +33,15 @@
     },
 
     "qsonic": {
+        "time": 5.0,
         "wave1": 3600.0, "wave2": 6600.0,
         "forest_w1": 1040.0, "forest_w2": 1200.0,
         "cont_order": 1,
         "coadd_arms": true,
         "skip_resomat": false,
-        "suffix": "-co1"
+        "dla-mask": "",
+        "bal-mask": false,
+        "sky-mask": "",
+        "suffix": ""
     }
 }
