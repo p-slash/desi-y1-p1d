@@ -276,16 +276,11 @@ class OhioTransmissionsJob():
         return jobid
 
 
-class QSOnicMockJob():
-    def __init__(
-            self, rootdir, interm_path, desibase_dir, foldername,
-            realization, qsonic_settings
-    ):
+class QSOnicJob():
+    def __init__(self, rootdir, foldername, is_mock, qsonic_settings):
         self.rootdir = rootdir
-        self.interm_path = interm_path
-        self.desibase_dir = desibase_dir
         self.foldername = foldername
-        self.realization = realization
+        self.is_mock = is_mock
 
         self.wave1 = qsonic_settings['wave1']
         self.wave2 = qsonic_settings['wave2']
@@ -294,27 +289,26 @@ class QSOnicMockJob():
         self.cont_order = qsonic_settings['cont_order']
         self.coadd_arms = qsonic_settings['coadd_arms']
         self.skip_resomat = qsonic_settings['skip_resomat']
-        self.suffix = qsonic_settings['suffix']
+        self.dla = qsonic_settings.get("dla-mask", "")
+        self.bal = qsonic_settings['bal-mask']
+        self.sky = qsonic_settings['sky-mask']
+        self.time = qsonic_settings['time']
 
-        self.delta_dir = f"Delta{self.suffix}"
+        self.suffix = f"-co{self.cont_order}"
+        if self.dla or self.bal or self.sky:
+            self.suffix += "-m"
+        if self.dla:
+            self.suffix += "d"
+        if self.bal:
+            self.suffix += "b"
+        if self.sky:
+            self.suffix += "s"
+        self.suffix += qsonic_settings['suffix']
 
-        self._set_outdelta_dir()
-        self.submitter_fname = None
-
-    def _set_outdelta_dir(self):
-        if self.rootdir:
-            self.outdelta_dir = ospath_join(
-                self.rootdir, self.interm_path, self.foldername, self.delta_dir)
-        else:
-            self.outdelta_dir = None
-
-    def inc_realization(self, new_interm_path, new_desibase_dir):
-        self.realization += 1
-        self.interm_path = new_interm_path
-        self.desibase_dir = new_desibase_dir
-
-        self._set_outdelta_dir()
-
+        self.catalog = None
+        self.indir = None
+        self.interm_path = None
+        self.outdelta_dir = None
         self.submitter_fname = None
 
     def create_directory(self, create_dir=True):
@@ -329,7 +323,7 @@ class QSOnicMockJob():
 
         return self.outdelta_dir
 
-    def create_script(self, nodes=1, time=5., queue="regular", dep_jobid=None):
+    def create_script(self, nodes=1, queue="regular", dep_jobid=None):
         """ Creates and writes the script for QSOnic run. Uses 128 CPUs per node.
         Sets self.submitter_fname.
 
@@ -344,35 +338,43 @@ class QSOnicMockJob():
         if self.outdelta_dir is None:
             return None
 
-        time_txt = timedelta(minutes=time)
+        time_txt = timedelta(minutes=self.time)
         nthreads = nodes * 128
         script_txt = utils.get_script_header(
-            self.outdelta_dir, f"qsonic-{self.realization}", time_txt, nodes, queue)
+            self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, nodes, queue)
 
-        command = f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\\\n"
-        command += f"-i {self.desibase_dir}/spectra-16 \\\\\n"
-        command += f"--catalog {self.desibase_dir}/zcat.fits \\\\\n"
-        command += f"-o {self.outdelta_dir} \\\\\n"
-        command += f"--mock-analysis \\\\\n"
-        command += f"--rfdwave 0.8 --skip 0.2 \\\\\n"
-        command += f"--no-iterations 10 \\\\\n"
-        command += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
-        command += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
+        script_txt += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-fit \\\\\n"
+        script_txt += f"-i {self.indir} \\\\\n"
+        script_txt += f"--catalog {self.catalog} \\\\\n"
+        script_txt += f"-o {self.outdelta_dir} \\\\\n"
+        script_txt += f"--rfdwave 0.8 --skip 0.2 \\\\\n"
+        script_txt += f"--no-iterations 10 \\\\\n"
+        script_txt += f"--cont-order {self.cont_order} \\\\\n"
+        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
+        script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
+
+        if self.is_mock:
+            script_txt += f" \\\\\n--mock-analysis"
+        if self.dla:
+            script_txt += f" \\\\\n--dla-mask {self.dla}"
+        if self.bal:
+            script_txt += " \\\\\n--bal-mask"
+        if self.sky:
+            script_txt += f" \\\\\n--sky-mask {self.sky}"
         if self.coadd_arms:
-            command += " \\\\\n--coadd-arms"
+            script_txt += " \\\\\n--coadd-arms"
         if self.skip_resomat:
-            command += " \\\\\n--skip-resomat"
+            script_txt += " \\\\\n--skip-resomat"
 
-        command += "\n\n"
+        script_txt += "\n\n"
 
-        command += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-calib \\\\\n"
-        command += f"-i {self.outdelta_dir} \\\\\n"
-        command += f"-o {self.outdelta_dir}/var_stats \\\\\n"
-        command += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
-        command += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
-        command += "\n\n"
+        script_txt += f"srun -N {nodes} -n {nthreads} -c 2 qsonic-calib \\\\\n"
+        script_txt += f"-i {self.outdelta_dir} \\\\\n"
+        script_txt += f"-o {self.outdelta_dir}/var_stats \\\\\n"
+        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
+        script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
+        script_txt += "\n\n"
 
-        script_txt += command
         script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128\n"
         script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128 --snr-cut 1\n"
         script_txt += f"getLists4QMLEfromPICCA.py {self.outdelta_dir} --nproc 128 --snr-cut 2\n"
@@ -400,6 +402,52 @@ class QSOnicMockJob():
 
         print("--------------------------------------------------")
         return jobid
+
+
+class QSOnicMockJob(QSOnicJob):
+    def __init__(
+            self, rootdir, interm_path, desibase_dir, foldername,
+            realization, qsonic_settings
+    ):
+        super().__init__(rootdir, foldername, True, qsonic_settings)
+        self.interm_path = interm_path
+        self.desibase_dir = desibase_dir
+        self.realization = realization
+
+        self._set_paths()
+        self.submitter_fname = None
+
+    def _set_paths(self):
+        self.indir = f"{self.desibase_dir}/spectra-16"
+        self.catalog = f"{self.desibase_dir}/zcat.fits"
+        if self.rootdir:
+            self.outdelta_dir = ospath_join(
+                self.rootdir, self.interm_path, self.foldername, f"Delta{self.suffix}")
+        else:
+            self.outdelta_dir = None
+
+    def inc_realization(self, new_interm_path, new_desibase_dir):
+        self.realization += 1
+        self.interm_path = new_interm_path
+        self.desibase_dir = new_desibase_dir
+
+        self._set_paths()
+        self.submitter_fname = None
+
+
+class QSOnicDataJob(QSOnicJob):
+    def __init__(self, rootdir, forest, desi_settings, qsonic_settings):
+        super().__init__(rootdir, forest, False, qsonic_settings)
+
+        self.catalog = desi_settings['catalog']
+
+        self.indir = f"{desi_settings['redux']}/{desi_settings['release']}/healpix"
+        self.interm_path = utils.get_folder_structure_data(
+            desi_settings['release'], desi_settings['survey'], self.catalog)
+        self.outdelta_dir = ospath_join(
+            self.rootdir, self.interm_path, self.foldername, f"Delta{self.suffix}")
+
+        self.submitter_fname = None
 
 
 class QmleJob():
