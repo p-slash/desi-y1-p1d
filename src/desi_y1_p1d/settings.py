@@ -50,14 +50,25 @@ class DesiDataSettings():
         args_dict = vars(args)
 
         for prg, prg_dict in self.settings.items():
-            prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
+            if prg != "qsonic":
+                prg_dict = _update_prg_dict(prg, prg_dict, args_dict)
+                continue
+            for forest, forest_dict in prg_dict.items():
+                forest_dict = _update_prg_dict(forest, forest_dict, args_dict)
 
     def print(self):
         for prg, prg_dict in self.settings.items():
+            print("=====================")
             print(prg)
-            for key, value in prg_dict.items():
-                print(f"  {key}: {value}")
-            print("---------------------")
+            if prg != "qsonic":
+                for key, value in prg_dict.items():
+                    print(f"  {key}: {value}")
+                continue
+            for forest, forest_dict in prg_dict.items():
+                print(f"  {forest}")
+                for key, value in forest_dict.items():
+                    print(f"    {key}: {value}")
+                print("---------------------")
 
 
 _key_map = {
