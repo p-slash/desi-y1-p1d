@@ -119,6 +119,7 @@ def _update_prg_dict(prg, prg_dict, args_dict):
     is_modified = False
     is_suffix_in = "suffix" in prg_dict
     current_suffix = prg_dict.get("suffix")
+    omitted_keys = ["nodes", "nthreads", "batch", "skip", "time", "queue"]
 
     for key in prg_dict.keys():
         arg_key = _map_prgkey_to_argkey(key, prg)
@@ -129,7 +130,7 @@ def _update_prg_dict(prg, prg_dict, args_dict):
             continue
 
         prg_dict[key] = str(args_dict[arg_key])
-        is_modified = True
+        is_modified = True & (key not in omitted_keys)
 
     if is_modified and is_suffix_in and prg_dict["suffix"] == current_suffix:
         print(f"Warning: you have changed default settings of {prg}, "
