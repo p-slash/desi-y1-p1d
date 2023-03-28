@@ -494,7 +494,10 @@ class LyspeqJob(Job):
         if self.skip:
             return
 
-        omitted_keys = ["nodes", "nthreads", "batch", "skip", "time", "queue", "env_command"]
+        omitted_keys = [
+            "nodes", "nthreads", "batch", "skip", "time", "queue", "env_command",
+            "number_of_bootstraps", "boot_seed"
+        ]
         config_lines = [
             f"{key} {value}\n"
             for key, value in self.qmle_settings.items()
@@ -508,6 +511,28 @@ class LyspeqJob(Job):
 
 
 class QmleJob(LyspeqJob):
+    def _bootstrap_txt(self):
+        save_boots = self.qmle_settings.getint('SaveEachProcessResult') > 0
+        if not save_boots:
+            return ""
+        nboots = self.qmle_settings.getint("number_of_bootstraps")
+        boot_seed = self.qmle_settings["boot_seed"]
+
+        if nboots <= 0:
+            return ""
+
+        inbootfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{self.qmle_settings['OutputFileBase']}-bootresults.dat")
+
+        boottxt = (f"bootstrapQMLE.py {inbootfile} --bootnum {nboots} "
+                   f"--fbase {self.qmle_settings['OutputFileBase']} "
+                   f"--seed {boot_seed}\n\n")
+
+        outcovfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{self.qmle_settings['OutputFileBase']}-bootstrap-cov-n{nboots}-s{boot_seed}.txt")
+
     def create_script(self, dep_jobid=None):
         self.create_config()
 
