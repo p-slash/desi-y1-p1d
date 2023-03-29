@@ -96,7 +96,8 @@ _key_map = {
     },
 
     "qsonic": {
-        "suffix": "suffix_qsonic"
+        "suffix": "suffix_qsonic",
+        "skip": "skip_qsonic"
     },
 
     "qmle": {
