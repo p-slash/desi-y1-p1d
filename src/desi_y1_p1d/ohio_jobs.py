@@ -147,17 +147,21 @@ class OhioQuickquasarsJob(Job):
         """
         time_txt = timedelta(minutes=self.time)
 
-        command = (f"srun -N 1 -n 1 -c {self.nthreads} "
-                   f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
-                   f"--outdir {self.desibase_dir}/spectra-16 {self.OPTS_QQ}")
-
         script_txt = utils.get_script_header(
             self.desibase_dir, f"ohio-qq-y1-{self.realization}",
             time_txt, self.nodes, self.queue)
 
+        relpath_to_tr = os.path.relpath(self.desibase_dir, self.transmissions_dir)
+
+        command = (f"srun -N 1 -n 1 -c {self.nthreads} "
+                   f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
+                   f"--outdir {relpath_to_tr}/spectra-16 {self.OPTS_QQ}")
+
+        script_txt += 'Change directory...\n'
+        script_txt += f'cd {self.transmissions_dir}\n'
         script_txt += 'echo "get list of skewers to run ..."\n\n'
 
-        script_txt += f"files=\\`ls -1 {self.transmissions_dir}/*/*/lya-transmission*.fits*\\`\n"
+        script_txt += f"files=\\`ls -1 ./*/*/lya-transmission*.fits*\\`\n"
         script_txt += "nfiles=\\`echo \\$files | wc -w\\`\n"
         script_txt += f"nfilespernode=\\$(( \\$nfiles/{self.nodes} + 1))\n\n"
 
@@ -180,20 +184,20 @@ class OhioQuickquasarsJob(Job):
         script_txt += f'    command="{command}"\n\n'
 
         script_txt += "    echo \\$command\n"
-        script_txt += f'    echo "log in {self.desibase_dir}/logs/node-\\$node.log"\n\n'
+        script_txt += f'    echo "log in {relpath_to_tr}/logs/node-\\$node.log"\n\n'
 
-        script_txt += f"    \\$command >& {self.desibase_dir}/logs/node-\\$node.log &\n"
+        script_txt += f"    \\$command >& {relpath_to_tr}/logs/node-\\$node.log &\n"
         script_txt += "done\n\n"
 
         script_txt += "wait\n"
         script_txt += "echo 'END'\n\n"
 
-        command = (f"desi_zcatalog -i {self.desibase_dir}/spectra-16 "
-                   f"-o {self.desibase_dir}/zcat.fits --minimal --prefix zbest\n")
+        command = (f"desi_zcatalog -i {relpath_to_tr}/spectra-16 "
+                   f"-o {relpath_to_tr}/zcat.fits --minimal --prefix zbest\n")
 
         if self.dla:
-            command += (f"get-qq-true-dla-catalog {self.desibase_dir}/spectra-16 "
-                        f"{self.desibase_dir} --nproc {self.nthreads}\n")
+            command += (f"get-qq-true-dla-catalog {relpath_to_tr}/spectra-16 "
+                        f"{relpath_to_tr} --nproc {self.nthreads}\n")
 
         script_txt += utils.get_script_text_for_master_node(command)
 
@@ -343,40 +347,44 @@ class QSOnicJob(Job):
         script_txt = utils.get_script_header(
             self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, self.nodes, self.queue)
 
-        script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\\\n"
-        script_txt += f"-i {self.indir} \\\\\n"
-        script_txt += f"--catalog {self.catalog} \\\\\n"
-        script_txt += f"-o {self.outdelta_dir} \\\\\n"
-        script_txt += f"--rfdwave 0.8 --skip 0.2 \\\\\n"
-        script_txt += f"--no-iterations 20 \\\\\n"
-        script_txt += f"--cont-order {self.cont_order} \\\\\n"
-        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
-        script_txt += f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}"
+        commands = []
+
+        qsonic_command = (
+            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\\\n"
+            f"-i {self.indir} \\\\\n"
+            f"--catalog {self.catalog} \\\\\n"
+            f"-o {self.outdelta_dir} \\\\\n"
+            f"--rfdwave 0.8 --skip 0.2 \\\\\n"
+            f"--no-iterations 20 \\\\\n"
+            f"--cont-order {self.cont_order} \\\\\n"
+            f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
+            f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}")
 
         if self.is_mock:
-            script_txt += f" \\\\\n--mock-analysis"
+            qsonic_command += f" \\\\\n--mock-analysis"
         if self.dla:
-            script_txt += f" \\\\\n--dla-mask {self.dla}"
+            qsonic_command += f" \\\\\n--dla-mask {self.dla}"
         if self.bal:
-            script_txt += " \\\\\n--bal-mask"
+            qsonic_command += " \\\\\n--bal-mask"
         if self.sky:
-            script_txt += f" \\\\\n--sky-mask {self.sky}"
+            qsonic_command += f" \\\\\n--sky-mask {self.sky}"
         if self.coadd_arms:
-            script_txt += " \\\\\n--coadd-arms"
+            qsonic_command += " \\\\\n--coadd-arms"
         if self.skip_resomat:
-            script_txt += " \\\\\n--skip-resomat"
+            qsonic_command += " \\\\\n--skip-resomat"
 
-        script_txt += "\n\n"
+        commands.append(qsonic_command)
+        commands.append(f"cd {self.outdelta_dir}")
+        commands.append(
+            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
+            f"-i . -o ./var_stats \\\\\n"
+            f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
-        script_txt += f"cd {self.outdelta_dir}\n\n"
+        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128")
+        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 1")
+        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 2")
 
-        script_txt += f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
-        script_txt += f"-i . -o ./var_stats \\\\\n"
-        script_txt += f"--wave1 {self.wave1} --wave2 {self.wave2}\n\n"
-
-        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128\n"
-        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 1\n"
-        script_txt += f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 2\n"
+        script_txt += " \\\\\n&& ".join(commands) + '\n'
 
         self.submitter_fname = utils.save_submitter_script(
             script_txt, self.outdelta_dir, "qsonic-fit", dep_jobid=dep_jobid)
@@ -511,27 +519,40 @@ class LyspeqJob(Job):
 
 
 class QmleJob(LyspeqJob):
-    def _bootstrap_txt(self):
-        save_boots = self.qmle_settings.getint('SaveEachProcessResult') > 0
+    def get_bootstrap_commands(self):
+        save_boots = int(self.qmle_settings['SaveEachProcessResult']) > 0
         if not save_boots:
-            return ""
-        nboots = self.qmle_settings.getint("number_of_bootstraps")
-        boot_seed = self.qmle_settings["boot_seed"]
+            return []
 
+        nboots = int(self.qmle_settings["number_of_bootstraps"])
+        boot_seed = self.qmle_settings["boot_seed"]
         if nboots <= 0:
-            return ""
+            return []
 
         inbootfile = os.path.join(
             self.qmle_settings['OutputDir'],
             f"{self.qmle_settings['OutputFileBase']}-bootresults.dat")
 
-        boottxt = (f"bootstrapQMLE.py {inbootfile} --bootnum {nboots} "
-                   f"--fbase {self.qmle_settings['OutputFileBase']} "
-                   f"--seed {boot_seed}\n\n")
+        commands = []
+        commands.append(
+            f"bootstrapQMLE.py {inbootfile} --bootnum {nboots} "
+            f"--fbase {self.qmle_settings['OutputFileBase']} "
+            f"--seed {boot_seed}")
 
         outcovfile = os.path.join(
             self.qmle_settings['OutputDir'],
             f"{self.qmle_settings['OutputFileBase']}-bootstrap-cov-n{nboots}-s{boot_seed}.txt")
+        infisherfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{self.qmle_settings['OutputFileBase']}_it1_fisher_matrix.txt")
+
+        commands.append(
+            f"regularizeBootstrapCov.py --boot-cov {outcovfile} "
+            f"--qmle-fisher {infisherfile} "
+            f"--qmle-sparcity-cut 0.001 --reg-in-cov "
+            f"--fbase {self.qmle_settings['OutputFileBase']}-")
+
+        return commands
 
     def create_script(self, dep_jobid=None):
         self.create_config()
@@ -545,8 +566,13 @@ class QmleJob(LyspeqJob):
             self.qmle_settings['OutputDir'], name,
             time_txt, self.nodes, self.queue)
 
-        script_txt += (f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
-                       f"LyaPowerEstimate {self.config_file}\n")
+        commands = []
+
+        commands.append(f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
+                        f"LyaPowerEstimate {self.config_file}")
+        commands.extend(self.get_bootstrap_commands())
+
+        script_txt += " \\\\\n&& ".join(commands) + '\n'
 
         self.submitter_fname = utils.save_submitter_script(
             script_txt, oneup_dir, name,
@@ -661,9 +687,10 @@ class DataJobChain():
 
     def schedule(self):
         sq_jobids = {}
+        last_qsonic_jobid = None
 
         for forest, qsonic_job in self.qsonic_jobs.items():
-            jobid = qsonic_job.schedule()
+            last_qsonic_jobid = qsonic_job.schedule(dep_jobid=last_qsonic_jobid)
 
             sq_key = forest[:-1]
             sq_job = self.sq_jobs.pop(sq_key, None)
@@ -671,6 +698,6 @@ class DataJobChain():
                 sq_jobids[sq_key] = sq_job.schedule()
 
             jobid_sq = sq_jobids.get(sq_key, -1)
-            jobids = [jobid, jobid_sq]
+            jobids = [last_qsonic_jobid, jobid_sq]
 
             self.qmle_jobs[forest].schedule(dep_jobid=jobids)
