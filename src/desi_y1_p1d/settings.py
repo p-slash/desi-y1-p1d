@@ -97,23 +97,29 @@ _key_map = {
 
     "qsonic": {
         "suffix": "suffix_qsonic",
-        "skip": "skip_qsonic"
+        "skip": "skip_qsonics"
     },
 
     "qmle": {
-        "skip": "skip_qmle"
+        "skip": "skip_qmles"
     }
 }
 
 
 def _map_prgkey_to_argkey(key, prg):
-    if prg not in _key_map:
+    jj = prg.find('.')
+    if jj != -1:
+        root_prg = prg[:jj]
+    else:
+        root_prg = prg
+
+    if root_prg not in _key_map:
         return key
 
-    if key not in _key_map[prg]:
+    if key not in _key_map[root_prg]:
         return key
 
-    return _key_map[prg][key]
+    return _key_map[root_prg][key]
 
 
 def _update_prg_dict(prg, prg_dict, args_dict):
@@ -127,10 +133,17 @@ def _update_prg_dict(prg, prg_dict, args_dict):
         if arg_key not in args_dict:
             continue
 
-        if not args_dict[arg_key]:
+        args_value = args_dict[arg_key]
+
+        if not args_value:
             continue
 
-        prg_dict[key] = str(args_dict[arg_key])
+        if key != "skip" and not isinstance(args_value, list):
+            prg_dict[key] = str(args_value)
+        else:
+            jj = prg.find('.') + 1
+            prg_dict["skip"] = str(prg[jj:] in args_value)
+
         is_modified = True & (key not in omitted_keys)
 
     if is_modified and is_suffix_in and prg_dict["suffix"] == current_suffix:
