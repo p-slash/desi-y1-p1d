@@ -53,11 +53,11 @@ def get_parser():
         "--suffix",
         help="suffix for QSOnic reduction if custom parameters are passed.")
     qsonic_group.add_argument(
-        "--skip-qsonics", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3'],
+        "--skip-qsonics", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3', 'all'],
         help="Skip continuum fitting step for listed forests.")
 
     qmle_group.add_argument(
-        "--skip-qmles", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3'],
+        "--skip-qmles", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3', 'all'],
         help="Skip QMLE. Makes sense if you only want to fit the continuum.")
 
     return parser

@@ -142,7 +142,8 @@ def _update_prg_dict(prg, prg_dict, args_dict):
             prg_dict[key] = str(args_value)
         else:
             jj = prg.find('.') + 1
-            prg_dict["skip"] = str(prg[jj:] in args_value)
+            do_skip = ("all" in args_value) or (prg[jj:] in args_value)
+            prg_dict["skip"] = str(do_skip)
 
         is_modified = True & (key not in omitted_keys)
 
