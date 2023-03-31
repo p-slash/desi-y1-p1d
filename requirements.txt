@@ -1,2 +1,2 @@
 qsonic
-qsotools@git+https://github.com/p-slash/qsotools.git@v2.5.3
+qsotools@git+https://github.com/p-slash/qsotools.git@v2.5.4

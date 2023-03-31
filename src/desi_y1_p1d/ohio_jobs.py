@@ -269,7 +269,7 @@ class OhioTransmissionsJob(Job):
             time_txt, nodes=self.nodes, queue=self.queue)
 
         script_txt += 'echo "Generating transmission files using qsotools."\n\n'
-        script_txt += (f"newGenDESILiteMocks.py {self.transmissions_dir} "
+        script_txt += (f"newGenDESILiteMocks {self.transmissions_dir} "
                        f"--master-file {self.catalog} --save-qqfile --nproc {self.nthreads} "
                        f"--seed {self.seed}\n")
 
@@ -380,9 +380,9 @@ class QSOnicJob(Job):
             f"-i . -o ./var_stats \\\\\n"
             f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
-        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128")
-        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 1")
-        commands.append(f"getLists4QMLEfromPICCA.py . --nproc 128 --snr-cut 2")
+        commands.append(f"getLists4QMLEfromPICCA . --nproc 128")
+        commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
+        commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
 
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 
@@ -535,7 +535,7 @@ class QmleJob(LyspeqJob):
 
         commands = []
         commands.append(
-            f"bootstrapQMLE.py {inbootfile} --bootnum {nboots} "
+            f"bootstrapQMLE {inbootfile} --bootnum {nboots} "
             f"--fbase {self.qmle_settings['OutputFileBase']} "
             f"--seed {boot_seed}")
 
@@ -547,7 +547,7 @@ class QmleJob(LyspeqJob):
             f"{self.qmle_settings['OutputFileBase']}_it1_fisher_matrix.txt")
 
         commands.append(
-            f"regularizeBootstrapCov.py --boot-cov {outcovfile} "
+            f"regularizeBootstrapCov --boot-cov {outcovfile} "
             f"--qmle-fisher {infisherfile} "
             f"--qmle-sparcity-cut 0.001 --reg-in-cov "
             f"--fbase {self.qmle_settings['OutputFileBase']}-")
