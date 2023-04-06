@@ -93,9 +93,12 @@ def get_parser():
     qsonic_group.add_argument(
         "--suffix-qsonic",
         help="suffix for QSOnic reduction if custom parameters are passed.")
+    qsonic_group.add_argument(
+        "--skip-qsonics", action="store_true",
+        help="Skip continuum fitting.")
 
     qmle_group.add_argument(
-        "--skip-qmle",
+        "--skip-qmles", action="store_true",
         help="Skip QMLE. Makes sense if you only want to fit the continuum.")
 
     return parser
