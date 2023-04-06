@@ -442,7 +442,7 @@ class QSOnicDataJob(QSOnicJob):
 
 class LyspeqJob(Job):
     def __init__(
-            self, rootdir, outdelta_dir, fnamelist, sysopt,
+            self, rootdir, outdelta_dir, sysopt,
             settings, section='qmle'
     ):
         super().__init__(settings, section)
@@ -450,7 +450,7 @@ class LyspeqJob(Job):
         self.qmle_settings = dict(settings[section])
         self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
-        self.qmle_settings['FileNameList'] = fnamelist
+        self.qmle_settings['FileNameList'] = f"{outdelta_dir}/fname_list.txt"
         self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/../results/")
         self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables{sb_suff}"
         self.qmle_settings['FileNameRList'] = f"{rootdir}/specres_list-rmat.txt"
@@ -638,16 +638,26 @@ class MockJobChain():
 
         self.qmle_job = QmleJob(
             rootdir, self.qsonic_job.outdelta_dir,
-            f"{self.qsonic_job.outdelta_dir}/fname_list.txt",
             self.qq_job.sysopt, settings)
+
+        if self.qmle_job.needs_sqjob():
+            self.sq_job = SQJob(
+                rootdir, self.qsonic_job.outdelta_dir, None, settings)
+        else:
+            self.sq_job = None
 
     def schedule(self):
         jobid = -1
+        sq_jobid = -1
+        if self.sq_job:
+            sq_jobid = self.sq_job.schedule()
+            self.sq_job = None
 
         jobid = self.tr_job.schedule()
         jobid = self.qq_job.schedule(jobid)
+
         jobid = self.qsonic_job.schedule(jobid)
-        jobid = self.qmle_job.schedule(jobid)
+        jobid = self.qmle_job.schedule([jobid, sq_jobid])
 
     def inc_realization(self):
         self.tr_job.inc_realization()
@@ -655,7 +665,6 @@ class MockJobChain():
         self.qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
         self.qmle_job = QmleJob(
             self.qq_job.rootdir, self.qsonic_job.outdelta_dir,
-            f"{self.qsonic_job.outdelta_dir}/fname_list.txt",
             self.qq_job.sysopt, self.settings)
 
 
@@ -674,7 +683,6 @@ class DataJobChain():
                 delta_dir, forest, desi_settings, settings, qsection)
             self.qmle_jobs[forest] = QmleJob(
                 rootdir, self.qsonic_jobs[forest].outdelta_dir,
-                f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
                 sysopt=None, settings=settings, section=f"qmle.{forest}")
 
             # Treat all SBs the same
@@ -682,7 +690,6 @@ class DataJobChain():
             if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
                 self.sq_jobs[sq_key] = SQJob(
                     rootdir, self.qsonic_jobs[forest].outdelta_dir,
-                    f"{self.qsonic_jobs[forest].outdelta_dir}/fname_list.txt",
                     sysopt=None, settings=settings, section=f"qmle.{forest}")
 
     def schedule(self):
