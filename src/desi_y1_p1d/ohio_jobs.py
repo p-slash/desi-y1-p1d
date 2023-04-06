@@ -157,7 +157,7 @@ class OhioQuickquasarsJob(Job):
                    f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
                    f"--outdir {relpath_to_tr}/spectra-16 {self.OPTS_QQ}")
 
-        script_txt += 'Change directory...\n'
+        script_txt += '# Change directory...\n'
         script_txt += f'cd {self.transmissions_dir}\n'
         script_txt += 'echo "get list of skewers to run ..."\n\n'
 

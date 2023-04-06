@@ -76,7 +76,10 @@ def main(options=None):
         final_data[ii:ii + nrows] = arr
         ii += nrows
 
-    fdla = fitsio.FITS(
-        f"{args.SaveDirectory}/dla_cat.fits", 'rw', clobber=True)
+    fname = f"{args.SaveDirectory}/dla_cat.fits"
+
+    fdla = fitsio.FITS(fname, 'rw', clobber=True)
     fdla.write(final_data, extname='DLACAT')
     fdla.close()
+
+    print(f"DLA catalog saved as {fname}.")
