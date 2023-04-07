@@ -45,7 +45,8 @@ def get_parser():
         help="suffix for the quickquasars realization if custom parameters are passed.")
 
     qq_group.add_argument("--nexp", type=int, help="Number of exposures.")
-    qq_group.add_argument("--dla", help="Could be 'random' or file.")
+    qq_group.add_argument(
+        "--dla", choices=["random", "file"], help="Add DLAs. 'file' adds clustered DLAs.")
     qq_group.add_argument(
         "--bal", type=float,
         help="Add BAL features with the specified probability. typical: 0.16")
