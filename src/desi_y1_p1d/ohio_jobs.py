@@ -66,7 +66,7 @@ class OhioQuickquasarsJob(Job):
         self.seed = f"{self.seed_base}{self.realization}"
         self.set_sysopt()
 
-        self.foldername = f"desi-{self.version[1]}.{self.sysopt}-{self.nexp}{self.suffix}"
+        self.foldername = f"desi-{self.version[1]}.{self.sysopt}"
         self._set_dirs()
 
         self.submitter_fname = None
@@ -117,7 +117,7 @@ class OhioQuickquasarsJob(Job):
         if not sysopt:
             sysopt = "0"
 
-        self.sysopt = sysopt
+        self.sysopt = f"{sysopt}-{self.nexp}{self.suffix}"
         self.OPTS_QQ = OPTS_QQ
 
     def create_directory(self, create_dir=True):
@@ -451,13 +451,14 @@ class LyspeqJob(Job):
         self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
         self.qmle_settings['FileNameList'] = f"{outdelta_dir}/fname_list.txt"
-        self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/../results/")
+        self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/results/")
         self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables{sb_suff}"
         self.qmle_settings['FileNameRList'] = f"{rootdir}/specres_list-rmat.txt"
         self.qmle_settings['OutputFileBase'] = self._get_output_fbase(settings, sysopt)
 
-        self.config_file = os.path.abspath(
-            f"{outdelta_dir}/../config-qmle-{self.qmle_settings['OutputFileBase']}.txt")
+        self.config_file = os.path.abspath(os.path.join(
+            self.qmle_settings['OutputDir'], "..",
+            f"config-qmle-{self.qmle_settings['OutputFileBase']}.txt"))
 
         frname = self.qmle_settings['FileNameRList']
         if not os.path.exists(frname):
@@ -621,51 +622,70 @@ class SQJob(LyspeqJob):
 
 
 class MockJobChain():
+    def _set_systematics(self):
+        # First is for DLA, second for BAL
+        self.dla_bal_combos = {"nosyst": ("", "False")}
+        if self.qq_job.dla:
+            self.dla_bal_combos["dla"] = (f"{self.qq_job.desibase_dir}/dla_cat.fits", "False")
+
     def __init__(
             self, rootdir, realization, delta_dir, settings
     ):
+        self.sq_job = None
+        self.sq_jobid = -1
+        self.dla_bal_combos = None
         self.settings = settings
-        self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
 
+        self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
 
-        self.qsonic_job = QSOnicMockJob(
-            delta_dir,
-            self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
-            realization,
-            settings
-        )
+        self._set_systematics()
 
-        self.qmle_job = QmleJob(
-            rootdir, self.qsonic_job.outdelta_dir,
-            self.qq_job.sysopt, settings)
+        self.qsonic_qmle_jobs = {}
+        for key, combo in self.dla_bal_combos.items():
+            settings.set("qsonic", "dla-mask", combo[0])
+            settings.set("qsonic", "bal-mask", combo[1])
 
-        if self.qmle_job.needs_sqjob():
-            self.sq_job = SQJob(
-                rootdir, self.qsonic_job.outdelta_dir, None, settings)
-        else:
-            self.sq_job = None
+            qsonic_job = QSOnicMockJob(
+                delta_dir,
+                self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
+                realization, settings
+            )
+
+            qmle_job = QmleJob(rootdir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
+
+            self.qsonic_qmle_jobs[key] = [qsonic_job, qmle_job]
+
+            if not self.sq_job and qmle_job.needs_sqjob():
+                self.sq_job = SQJob(rootdir, qsonic_job.outdelta_dir, None, settings)
 
     def schedule(self):
         jobid = -1
-        sq_jobid = -1
         if self.sq_job:
-            sq_jobid = self.sq_job.schedule()
+            self.sq_jobid = self.sq_job.schedule()
             self.sq_job = None
 
         jobid = self.tr_job.schedule()
         jobid = self.qq_job.schedule(jobid)
 
-        jobid = self.qsonic_job.schedule(jobid)
-        jobid = self.qmle_job.schedule([jobid, sq_jobid])
+        for item in self.qsonic_qmle_jobs.values():
+            qsonic_job, qmle_job = item
+            jobid = qsonic_job.schedule(jobid)
+            _ = qmle_job.schedule([jobid, self.sq_jobid])
 
     def inc_realization(self):
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
-        self.qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
-        self.qmle_job = QmleJob(
-            self.qq_job.rootdir, self.qsonic_job.outdelta_dir,
-            self.qq_job.sysopt, self.settings)
+
+        for joblist in self.qsonic_qmle_jobs.values():
+            qsonic_job = joblist[0]
+            qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
+
+            qmle_job = QmleJob(
+                self.qq_job.rootdir, qsonic_job.outdelta_dir,
+                self.qq_job.sysopt, self.settings)
+
+            joblist[1] = qmle_job
 
 
 class DataJobChain():
