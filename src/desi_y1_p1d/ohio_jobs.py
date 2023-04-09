@@ -460,12 +460,6 @@ class LyspeqJob(Job):
             self.qmle_settings['OutputDir'], "..",
             f"config-qmle-{self.qmle_settings['OutputFileBase']}.txt"))
 
-        frname = self.qmle_settings['FileNameRList']
-        if not os.path.exists(frname):
-            with open(frname, 'w') as frfile:
-                frfile.write("1\n")
-                frfile.write("1000000 0.1\n")
-
     def _get_output_fbase(self, settings, sysopt):
         if "ohio" in settings.sections():
             release = settings['ohio']['release']
@@ -498,6 +492,12 @@ class LyspeqJob(Job):
 
         makedirs(self.qmle_settings['OutputDir'], exist_ok=True)
         makedirs(self.qmle_settings['LookUpTableDir'], exist_ok=True)
+
+        frname = self.qmle_settings['FileNameRList']
+        if not os.path.exists(frname):
+            with open(frname, 'w') as frfile:
+                frfile.write("1\n")
+                frfile.write("1000000 0.1\n")
 
     def create_config(self):
         if self.skip:
@@ -652,12 +652,12 @@ class MockJobChain():
                 realization, settings
             )
 
-            qmle_job = QmleJob(rootdir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
+            qmle_job = QmleJob(delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
 
             self.qsonic_qmle_jobs[key] = [qsonic_job, qmle_job]
 
             if not self.sq_job and qmle_job.needs_sqjob():
-                self.sq_job = SQJob(rootdir, qsonic_job.outdelta_dir, None, settings)
+                self.sq_job = SQJob(delta_dir, qsonic_job.outdelta_dir, None, settings)
 
     def schedule(self):
         jobid = -1
@@ -689,7 +689,7 @@ class MockJobChain():
 
 
 class DataJobChain():
-    def __init__(self, rootdir, delta_dir, settings):
+    def __init__(self, delta_dir, settings):
         desi_settings = settings['desi']
         qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
 
@@ -702,14 +702,14 @@ class DataJobChain():
             self.qsonic_jobs[forest] = QSOnicDataJob(
                 delta_dir, forest, desi_settings, settings, qsection)
             self.qmle_jobs[forest] = QmleJob(
-                rootdir, self.qsonic_jobs[forest].outdelta_dir,
+                delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                 sysopt=None, settings=settings, section=f"qmle.{forest}")
 
             # Treat all SBs the same
             sq_key = forest[:-1]
             if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
                 self.sq_jobs[sq_key] = SQJob(
-                    rootdir, self.qsonic_jobs[forest].outdelta_dir,
+                    delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}")
 
     def schedule(self):

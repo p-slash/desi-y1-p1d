@@ -32,8 +32,8 @@ def get_parser():
 
     folder_group.add_argument("--redux", help="DESI redux spectro.")
     folder_group.add_argument(
-        "--root-dir", help="Directory that has lookuptables/ and specres-list.txt")
-    folder_group.add_argument("--delta-dir", help="for delta reductions")
+        "--delta-dir",
+        help="Directory that has lookuptables/ and specres-list.txt and delta reductions")
     folder_group.add_argument("--release", help="Release")
     folder_group.add_argument("--survey", help="Survey")
     folder_group.add_argument("--catalog", help="Catalog")
@@ -81,10 +81,6 @@ def main(options=None):
         oh_sett.print()
         exit(0)
 
-    if not args.root_dir:
-        print("The following argument is required: --root-dir")
-        exit(1)
-
     if not args.delta_dir:
         print("The following argument is required: --delta-dir")
         exit(1)
@@ -97,7 +93,7 @@ def main(options=None):
 
     settings = oh_sett.settings
 
-    job_chain = DataJobChain(args.root_dir, args.delta_dir, settings)
+    job_chain = DataJobChain(args.delta_dir, settings)
     print(f"Setting up DataJobChain.")
     job_chain.schedule()
     print(f"DataJobChain done.")
