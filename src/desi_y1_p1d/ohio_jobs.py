@@ -300,6 +300,7 @@ class QSOnicJob(Job):
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
+        self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -372,13 +373,15 @@ class QSOnicJob(Job):
             qsonic_command += " \\\\\n--coadd-arms"
         if self.skip_resomat:
             qsonic_command += " \\\\\n--skip-resomat"
+        if self.extra_opts:
+            qsonic_command += f" \\\\\n{self.extra_opts}"
 
         commands.append(qsonic_command)
         commands.append(f"cd {self.outdelta_dir}")
-        commands.append(
-            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
-            f"-i . -o ./var_stats \\\\\n"
-            f"--wave1 {self.wave1} --wave2 {self.wave2}")
+        # commands.append(
+        #     f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
+        #     f"-i . -o ./var_stats \\\\\n"
+        #     f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
         commands.append(f"getLists4QMLEfromPICCA . --nproc 128")
         commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
@@ -712,11 +715,30 @@ class DataJobChain():
                     delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}")
 
+        forest = "LyaCalib"
+        qsection = "qsonic.Lya"
+        calibfile = f"{self.qsonic_jobs['SB3'].outdelta_dir}/attributes.fits"
+
+        self.qsonic_jobs[forest] = QSOnicDataJob(
+            delta_dir, forest, desi_settings, settings, qsection)
+        self.qsonic_jobs[forest].extra_opts += (
+            f" --noise-calibration {calibfile}"
+            f" --flux-calibration {calibfile}")
+        self.qmle_jobs[forest] = QmleJob(
+            delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+            sysopt=None, settings=settings, section=f"qmle.Lya")
+
     def schedule(self):
         sq_jobids = {}
         last_qsonic_jobid = None
 
-        for forest, qsonic_job in self.qsonic_jobs.items():
+        # Make sure LyaCalib runs last
+        forests = list(self.qsonic_jobs.keys())
+        forests.remove("LyaCalib")
+        forests.append("LyaCalib")
+
+        for forest in forests:
+            qsonic_job = self.qsonic_jobs[forest]
             last_qsonic_jobid = qsonic_job.schedule(dep_jobid=last_qsonic_jobid)
 
             sq_key = forest[:-1]

@@ -33,7 +33,7 @@ class OhioMockSettings():
 
 
 class DesiDataSettings():
-    all_settings = ["y1_iron_v0_nosyst"]
+    all_settings = ["y1_iron_v0_nosyst", "y1_iron_v1_allsyst"]
 
     @staticmethod
     def list_available_settings():
