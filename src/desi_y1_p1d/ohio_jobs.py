@@ -660,7 +660,8 @@ class MockJobChain():
             self.qsonic_qmle_jobs[key] = [qsonic_job, qmle_job]
 
             if not self.sq_job and qmle_job.needs_sqjob():
-                self.sq_job = SQJob(delta_dir, qsonic_job.outdelta_dir, None, settings)
+                self.sq_job = SQJob(
+                    delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
 
     def schedule(self):
         jobid = -1
