@@ -301,6 +301,7 @@ class QSOnicJob(Job):
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
         self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
+        self.env_command = qsonic_settings['env_command']
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -390,7 +391,8 @@ class QSOnicJob(Job):
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 
         self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.outdelta_dir, "qsonic-fit", dep_jobid=dep_jobid)
+            script_txt, self.outdelta_dir, "qsonic-fit",
+            env_command=self.env_command, dep_jobid=dep_jobid)
 
         print(f"QSOnic script is saved as {self.submitter_fname}.")
 
@@ -722,8 +724,8 @@ class DataJobChain():
         self.qsonic_jobs[forest] = QSOnicDataJob(
             delta_dir, forest, desi_settings, settings, qsection)
         self.qsonic_jobs[forest].extra_opts += (
-            f" --noise-calibration {calibfile}"
-            f" --flux-calibration {calibfile}")
+            f" \\\\\n--noise-calibration {calibfile}"
+            f" \\\\\n--flux-calibration {calibfile}")
         self.qmle_jobs[forest] = QmleJob(
             delta_dir, self.qsonic_jobs[forest].outdelta_dir,
             sysopt=None, settings=settings, section=f"qmle.Lya")

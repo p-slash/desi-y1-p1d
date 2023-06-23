@@ -53,7 +53,8 @@ def get_script_text_for_master_node(command):
 
 def save_submitter_script(
         script_txt, outdir, fname_core,
-        env_command=None, dep_jobid=None):
+        env_command=None, dep_jobid=None
+):
     script_fname = f"{outdir}/run-{fname_core}.sl"
     submitter_fname = f"{outdir}/submit-{fname_core}.sh"
 
