@@ -295,12 +295,13 @@ class QSOnicJob(Job):
         self.forest_w1 = qsonic_settings['forest_w1']
         self.forest_w2 = qsonic_settings['forest_w2']
         self.cont_order = qsonic_settings['cont_order']
-        self.coadd_arms = qsonic_settings.getboolean('coadd_arms', fallback=False)
+        self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
         self.skip_resomat = qsonic_settings.getboolean('skip_resomat', fallback=False)
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
         self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
+        self.env_command = qsonic_settings['env_command']
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -370,7 +371,7 @@ class QSOnicJob(Job):
         if self.sky:
             qsonic_command += f" \\\\\n--sky-mask {self.sky}"
         if self.coadd_arms:
-            qsonic_command += " \\\\\n--coadd-arms"
+            qsonic_command += f" \\\\\n--coadd-arms {self.coadd_arms}"
         if self.skip_resomat:
             qsonic_command += " \\\\\n--skip-resomat"
         if self.extra_opts:
@@ -390,7 +391,8 @@ class QSOnicJob(Job):
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 
         self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.outdelta_dir, "qsonic-fit", dep_jobid=dep_jobid)
+            script_txt, self.outdelta_dir, "qsonic-fit",
+            env_command=self.env_command, dep_jobid=dep_jobid)
 
         print(f"QSOnic script is saved as {self.submitter_fname}.")
 
@@ -508,7 +510,6 @@ class LyspeqJob(Job):
 
         omitted_keys = [
             "nodes", "nthreads", "batch", "skip", "time", "queue", "env_command",
-            "number_of_bootstraps", "boot_seed"
         ]
         config_lines = [
             f"{key} {value}\n"
@@ -574,7 +575,7 @@ class QmleJob(LyspeqJob):
 
         commands.append(f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
                         f"LyaPowerEstimate {self.config_file}")
-        commands.extend(self.get_bootstrap_commands())
+        # commands.extend(self.get_bootstrap_commands())
 
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 
@@ -723,8 +724,8 @@ class DataJobChain():
         self.qsonic_jobs[forest] = QSOnicDataJob(
             delta_dir, forest, desi_settings, settings, qsection)
         self.qsonic_jobs[forest].extra_opts += (
-            f" --noise-calibration {calibfile}"
-            f" --flux-calibration {calibfile}")
+            f" \\\\\n--noise-calibration {calibfile}"
+            f" \\\\\n--flux-calibration {calibfile}")
         self.qmle_jobs[forest] = QmleJob(
             delta_dir, self.qsonic_jobs[forest].outdelta_dir,
             sysopt=None, settings=settings, section=f"qmle.Lya")
