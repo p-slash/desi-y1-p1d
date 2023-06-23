@@ -357,7 +357,7 @@ class QSOnicJob(Job):
             f"--catalog {self.catalog} \\\\\n"
             f"-o {self.outdelta_dir} \\\\\n"
             f"--rfdwave 0.8 --skip 0.2 \\\\\n"
-            f"--no-iterations 20 \\\\\n"
+            f"--num-iterations 20 \\\\\n"
             f"--cont-order {self.cont_order} \\\\\n"
             f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
             f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}")
