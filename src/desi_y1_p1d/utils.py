@@ -35,7 +35,7 @@ def get_script_header(outdir, jobname, time_txt, nodes, queue="regular"):
         f"#SBATCH --time={time_txt}\n"
         f"#SBATCH --job-name={jobname}\n"
         f"#SBATCH --output={outdir}/log-{jobname}-%j.out\n"
-        f"#SBATCH --error={outdir}/log-{jobname}-%j.err\n\n"
+        f"#SBATCH --error={outdir}/log-{jobname}-%j.out\n\n"
     )
 
     script_txt += "umask 0027\n\n"
