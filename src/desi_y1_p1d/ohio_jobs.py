@@ -384,6 +384,7 @@ class QSOnicJob(Job):
         #     f"-i . -o ./var_stats \\\\\n"
         #     f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
+        commands.append("source deactivate")
         commands.append(f"getLists4QMLEfromPICCA . --nproc 128")
         commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
         commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
@@ -717,18 +718,20 @@ class DataJobChain():
                     delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}")
 
-        forest = "LyaCalib"
-        qsection = "qsonic.Lya"
         calibfile = f"{self.qsonic_jobs['SB3'].outdelta_dir}/attributes.fits"
+        calib_forests = ['Lya', 'SB1']
+        for cf in calib_forests:
+            forest = f"{cf}Calib"
+            qsection = f"qsonic.{cf}"
 
-        self.qsonic_jobs[forest] = QSOnicDataJob(
-            delta_dir, forest, desi_settings, settings, qsection)
-        self.qsonic_jobs[forest].extra_opts += (
-            f" \\\\\n--noise-calibration {calibfile}"
-            f" \\\\\n--flux-calibration {calibfile}")
-        self.qmle_jobs[forest] = QmleJob(
-            delta_dir, self.qsonic_jobs[forest].outdelta_dir,
-            sysopt=None, settings=settings, section=f"qmle.Lya")
+            self.qsonic_jobs[forest] = QSOnicDataJob(
+                delta_dir, forest, desi_settings, settings, qsection)
+            self.qsonic_jobs[forest].extra_opts += (
+                f" \\\\\n--noise-calibration {calibfile}"
+                f" \\\\\n--flux-calibration {calibfile}")
+            self.qmle_jobs[forest] = QmleJob(
+                delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+                sysopt=None, settings=settings, section=f"qmle.{cf}")
 
     def schedule(self):
         sq_jobids = {}
@@ -736,8 +739,7 @@ class DataJobChain():
 
         # Make sure LyaCalib runs last
         forests = list(self.qsonic_jobs.keys())
-        forests.remove("LyaCalib")
-        forests.append("LyaCalib")
+        forests.sort(key=lambda x: (x.endswith("Calib"), x))
 
         for forest in forests:
             qsonic_job = self.qsonic_jobs[forest]
