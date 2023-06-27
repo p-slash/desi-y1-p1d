@@ -296,6 +296,8 @@ class QSOnicJob(Job):
         self.forest_w2 = qsonic_settings['forest_w2']
         self.cont_order = qsonic_settings['cont_order']
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
+        self.fiducial_meanflux = qsonic_settings.get('fiducial_meanflux', fallback=None)
+        self.fiducial_varlss = qsonic_settings.get('fiducial_varlss', fallback=None)
         self.skip_resomat = qsonic_settings.getboolean('skip_resomat', fallback=False)
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
@@ -374,6 +376,10 @@ class QSOnicJob(Job):
             qsonic_command += f" \\\\\n--coadd-arms {self.coadd_arms}"
         if self.skip_resomat:
             qsonic_command += " \\\\\n--skip-resomat"
+        if self.fiducial_meanflux:
+            qsonic_command += f" \\\\\n{self.fiducial_meanflux}"
+        if self.fiducial_varlss:
+            qsonic_command += f" \\\\\n{self.fiducial_varlss}"
         if self.extra_opts:
             qsonic_command += f" \\\\\n{self.extra_opts}"
 

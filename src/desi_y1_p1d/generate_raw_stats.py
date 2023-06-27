@@ -9,6 +9,10 @@ import qsotools.fiducial as fid
 from qsotools.mocklib import lognMeanFluxGH as TRUE_MEAN_FLUX
 
 
+def becker13_mf(z):
+    return fid.evaluateBecker13MeanFlux(z, *fid.BECKER13_parameters)
+
+
 def readTrueP1D(fname):
     print("I am reading true power.", flush=True)
     file = open(fname, 'rb')
@@ -53,13 +57,13 @@ def get_true_var_lss(
 
 
 def make_up_raw_file(
-        fname_out, fname_truepower, w1, w2, rfw1, rfw2, dlambda, dloglam=3e-4
+        fname_out, truepower_interp2d, meanflux_fn,
+        w1, w2, rfw1, rfw2, dlambda, dloglam=3e-4
 ):
     num_bins = int((w2 - w1) / dlambda) + 1
     wave = np.linspace(w1, w2, num_bins)
     z = wave / fid.LYA_WAVELENGTH - 1
-    true_mean = TRUE_MEAN_FLUX(z)
-    truepower_interp2d = readTrueP1D(fname_truepower)
+    true_mean = meanflux_fn(z)
     var_lss = get_true_var_lss(
         z, fid.LIGHT_SPEED * dlambda / wave, truepower_interp2d)
     flux_variance = var_lss * true_mean**2
@@ -108,13 +112,25 @@ def main():
     parser.add_argument(
         '--delta-lambda', type=float, default=0.8, required=False,
         help='Size of the rebined pixels in lambda')
+    parser.add_argument(
+        "--meanflux", choices=['mock', 'becker13'], default='mock',
+        help='Mean flux to use.')
     args = parser.parse_args()
 
     fname_out = (f"{args.out_fname_base}-obs{args.lambda_min:.0f}"
                  f"-{args.lambda_max:.0f}-rf{args.lambda_rest_min:.0f}"
                  f"-{args.lambda_rest_max:.0f}-dw{args.delta_lambda:.1f}.fits")
 
-    make_up_raw_file(fname_out, args.fname_true_power,
+    if args.meanflux == 'mock':
+        meanflux_fn = TRUE_MEAN_FLUX
+    elif args.meanflux == 'becker13':
+        meanflux_fn = becker13_mf
+    else:
+        raise Exception("Unknown mean flux option")
+
+    truepower_interp2d = readTrueP1D(args.fname_true_power)
+
+    make_up_raw_file(fname_out, truepower_interp2d, meanflux_fn,
                      args.lambda_min, args.lambda_max,
                      args.lambda_rest_min, args.lambda_rest_max,
                      args.delta_lambda)
