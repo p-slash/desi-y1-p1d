@@ -377,9 +377,9 @@ class QSOnicJob(Job):
         if self.skip_resomat:
             qsonic_command += " \\\\\n--skip-resomat"
         if self.fiducial_meanflux:
-            qsonic_command += f" \\\\\n{self.fiducial_meanflux}"
+            qsonic_command += f" \\\\\n--fiducial-meanflux {self.fiducial_meanflux}"
         if self.fiducial_varlss:
-            qsonic_command += f" \\\\\n{self.fiducial_varlss}"
+            qsonic_command += f" \\\\\n--fiducial-varlss {self.fiducial_varlss}"
         if self.extra_opts:
             qsonic_command += f" \\\\\n{self.extra_opts}"
 
