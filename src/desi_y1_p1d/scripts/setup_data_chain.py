@@ -98,3 +98,4 @@ def main(options=None):
     job_chain.schedule()
     print(f"DataJobChain done.")
     print("==================================================")
+    job_chain.save_jobids()
