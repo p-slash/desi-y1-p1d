@@ -648,7 +648,7 @@ class JobChain():
             return
 
         jobids_txt = ",".join(self.all_jobids)
-        command = f"sacct -X -o JobID,JobName,State -j {jobids_txt}\n"
+        command = f"sacct -X -o JobID,JobName,State,Elapsed -j {jobids_txt}\n"
         datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
         with open(f'{self.parentdir}/jobids-{datestamp}.txt', 'w') as file:
             file.write(jobids_txt)
@@ -657,7 +657,7 @@ class JobChain():
             self.parentdir, "summary-job", "00:02:00", 1, "debug")
         script_txt += command
         submitter_fname = utils.save_submitter_script(
-            script_txt, self.parentdir, f"summary-job{datestamp}",
+            script_txt, self.parentdir, f"summary-job-{datestamp}",
             dep_jobid=self.all_jobids, afterwhat="afterany")
         utils.submit_script(submitter_fname)
 
