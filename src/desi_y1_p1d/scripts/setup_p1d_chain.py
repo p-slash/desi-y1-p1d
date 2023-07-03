@@ -146,3 +146,5 @@ def main(options=None):
 
         print(f"MockJobChain done for realization {jj+args.rn1}.")
         print("==================================================")
+
+    job_chain.save_jobids()

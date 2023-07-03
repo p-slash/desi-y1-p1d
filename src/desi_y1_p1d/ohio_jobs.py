@@ -1,7 +1,7 @@
 from os import makedirs
 import os.path
 import glob
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from desi_y1_p1d import utils
 
@@ -632,7 +632,37 @@ class SQJob(LyspeqJob):
         return self.submitter_fname
 
 
-class MockJobChain():
+class JobChain():
+    def __init__(self, parentdir):
+        self.parentdir = parentdir
+        self.all_jobids = []
+
+    def schedule_job(self, job, dep_jobid=None):
+        jobid = job.schedule(dep_jobid=dep_jobid)
+        if jobid != -1:
+            self.all_jobids.append(jobid)
+        return jobid
+
+    def save_jobids(self):
+        if not self.all_jobids:
+            return
+
+        jobids_txt = ",".join(self.all_jobids)
+        command = f"sacct -X -o JobID,JobName,State -j {jobids_txt}\n"
+        datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
+        with open(f'{self.parentdir}/jobids-{datestamp}.txt', 'w') as file:
+            file.write(jobids_txt)
+
+        script_txt = utils.get_script_header(
+            self.parentdir, "summary-job", "00:02:00", 1, "debug")
+        script_txt += command
+        submitter_fname = utils.save_submitter_script(
+            script_txt, self.parentdir, f"summary-job{datestamp}",
+            dep_jobid=self.all_jobids, afterwhat="afterany")
+        utils.submit_script(submitter_fname)
+
+
+class MockJobChain(JobChain):
     def _set_systematics(self):
         # First is for DLA, second for BAL
         self.dla_bal_combos = {"nosyst": ("", "False")}
@@ -642,6 +672,8 @@ class MockJobChain():
     def __init__(
             self, rootdir, realization, delta_dir, settings
     ):
+        super().__init__(rootdir)
+
         self.sq_job = None
         self.sq_jobid = -1
         self.dla_bal_combos = None
@@ -674,16 +706,16 @@ class MockJobChain():
     def schedule(self):
         jobid = -1
         if self.sq_job:
-            self.sq_jobid = self.sq_job.schedule()
+            self.sq_jobid = self.schedule_job(self.sq_job)
             self.sq_job = None
 
-        jobid = self.tr_job.schedule()
-        jobid = self.qq_job.schedule(jobid)
+        jobid = self.schedule_job(self.tr_job)
+        jobid = self.schedule_job(self.qq_job, jobid)
 
         for item in self.qsonic_qmle_jobs.values():
             qsonic_job, qmle_job = item
-            jobid = qsonic_job.schedule(jobid)
-            _ = qmle_job.schedule([jobid, self.sq_jobid])
+            jobid = self.schedule_job(qsonic_job, jobid)
+            _ = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
 
     def inc_realization(self):
         self.tr_job.inc_realization()
@@ -702,6 +734,8 @@ class MockJobChain():
 
 class DataJobChain():
     def __init__(self, delta_dir, settings):
+        super().__init__(delta_dir)
+
         desi_settings = settings['desi']
         qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
 
@@ -718,7 +752,7 @@ class DataJobChain():
                 sysopt=None, settings=settings, section=f"qmle.{forest}")
 
             # Treat all SBs the same
-            sq_key = forest[:-1]
+            sq_key = forest[:2]
             if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
                 self.sq_jobs[sq_key] = SQJob(
                     delta_dir, self.qsonic_jobs[forest].outdelta_dir,
@@ -749,14 +783,15 @@ class DataJobChain():
 
         for forest in forests:
             qsonic_job = self.qsonic_jobs[forest]
-            last_qsonic_jobid = qsonic_job.schedule(dep_jobid=last_qsonic_jobid)
+            qmle_job = self.qmle_jobs[forest]
 
-            sq_key = forest[:-1]
+            last_qsonic_jobid = self.schedule_job(qsonic_job, last_qsonic_jobid)
+
+            sq_key = forest[:2]
             sq_job = self.sq_jobs.pop(sq_key, None)
             if sq_job:
-                sq_jobids[sq_key] = sq_job.schedule()
+                sq_jobids[sq_key] = self.schedule_job(sq_job)
 
             jobid_sq = sq_jobids.get(sq_key, -1)
-            jobids = [last_qsonic_jobid, jobid_sq]
 
-            self.qmle_jobs[forest].schedule(dep_jobid=jobids)
+            _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
