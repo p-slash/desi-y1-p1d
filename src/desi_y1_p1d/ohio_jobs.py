@@ -732,7 +732,7 @@ class MockJobChain(JobChain):
             joblist[1] = qmle_job
 
 
-class DataJobChain():
+class DataJobChain(JobChain):
     def __init__(self, delta_dir, settings):
         super().__init__(delta_dir)
 
