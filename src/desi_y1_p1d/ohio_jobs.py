@@ -640,14 +640,14 @@ class JobChain():
     def schedule_job(self, job, dep_jobid=None):
         jobid = job.schedule(dep_jobid=dep_jobid)
         if jobid != -1:
-            self.all_jobids.append(str(jobid))
+            self.all_jobids.append(jobid)
         return jobid
 
     def save_jobids(self):
         if not self.all_jobids:
             return
 
-        jobids_txt = ",".join(self.all_jobids)
+        jobids_txt = ",".join([str(j) for j in self.all_jobids])
         command = f"sacct -X -o JobID,JobName,State,Elapsed -j {jobids_txt}\n"
         datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
         with open(f'{self.parentdir}/jobids-{datestamp}.txt', 'w') as file:
