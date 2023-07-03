@@ -640,7 +640,7 @@ class JobChain():
     def schedule_job(self, job, dep_jobid=None):
         jobid = job.schedule(dep_jobid=dep_jobid)
         if jobid != -1:
-            self.all_jobids.append(jobid)
+            self.all_jobids.append(str(jobid))
         return jobid
 
     def save_jobids(self):
