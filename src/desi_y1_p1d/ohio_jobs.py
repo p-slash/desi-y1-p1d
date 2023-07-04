@@ -455,10 +455,11 @@ class QSOnicDataJob(QSOnicJob):
 class LyspeqJob(Job):
     def __init__(
             self, rootdir, outdelta_dir, sysopt,
-            settings, section='qmle'
+            settings, section='qmle', jobname='Lya'
     ):
         super().__init__(settings, section)
         sb_suff = "-sb" if "SB" in section else ""
+        self.jobname = jobname
         self.qmle_settings = dict(settings[section])
         self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
@@ -571,11 +572,10 @@ class QmleJob(LyspeqJob):
 
         time_txt = timedelta(minutes=self.time)
 
-        name = f"qmle-{self.qmle_settings['OutputFileBase']}"
         oneup_dir = os.path.abspath(f"{self.qmle_settings['OutputDir']}/../")
 
         script_txt = utils.get_script_header(
-            self.qmle_settings['OutputDir'], name,
+            self.qmle_settings['OutputDir'], self.jobname,
             time_txt, self.nodes, self.queue)
 
         commands = []
@@ -587,7 +587,7 @@ class QmleJob(LyspeqJob):
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 
         self.submitter_fname = utils.save_submitter_script(
-            script_txt, oneup_dir, name,
+            script_txt, oneup_dir, self.jobname,
             env_command=self.qmle_settings['env_command'],
             dep_jobid=dep_jobid)
 
@@ -617,13 +617,13 @@ class SQJob(LyspeqJob):
         time_txt = timedelta(minutes=5.)
 
         script_txt = utils.get_script_header(
-            self.qmle_settings['LookUpTableDir'], "sq-job",
+            self.qmle_settings['LookUpTableDir'], self.jobname,
             time_txt, 1, self.queue)
 
         script_txt += f"srun -N 1 -n 1 -c 2 CreateSQLookUpTable {self.config_file}\n"
 
         self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.qmle_settings['LookUpTableDir'], "sq-job",
+            script_txt, self.qmle_settings['LookUpTableDir'], self.jobname,
             env_command=self.qmle_settings['env_command'],
             dep_jobid=dep_jobid)
 
@@ -648,7 +648,7 @@ class JobChain():
             return
 
         jobids_txt = ",".join([str(j) for j in self.all_jobids])
-        command = f"sacct -X -o JobID,JobName,State,Elapsed -j {jobids_txt}\n"
+        command = f"sacct -X -o JobID,JobName%30,State,Elapsed -j {jobids_txt}\n"
         datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
         with open(f'{self.parentdir}/jobids-{datestamp}.txt', 'w') as file:
             file.write(jobids_txt)
@@ -695,13 +695,16 @@ class MockJobChain(JobChain):
                 realization, settings
             )
 
-            qmle_job = QmleJob(delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
+            qmle_job = QmleJob(
+                delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
+                jobname=f"qmle-{key}-{realization}")
 
             self.qsonic_qmle_jobs[key] = [qsonic_job, qmle_job]
 
             if not self.sq_job and qmle_job.needs_sqjob():
                 self.sq_job = SQJob(
-                    delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings)
+                    delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
+                    jobname="sq-job")
 
     def schedule(self):
         jobid = -1
@@ -722,14 +725,15 @@ class MockJobChain(JobChain):
         self.qq_job.inc_realization()
 
         for joblist in self.qsonic_qmle_jobs.values():
-            qsonic_job = joblist[0]
+            qsonic_job, qmle_job = joblist
             qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
 
-            qmle_job = QmleJob(
+            qmlejobname = qmle_job.jobname.split('-')
+            qmlejobname[-1] = str(qsonic_job.realization)
+            qmlejobname = '-'.join(qmlejobname)
+            joblist[1] = QmleJob(
                 self.qq_job.rootdir, qsonic_job.outdelta_dir,
-                self.qq_job.sysopt, self.settings)
-
-            joblist[1] = qmle_job
+                self.qq_job.sysopt, self.settings, jobname=qmlejobname)
 
 
 class DataJobChain(JobChain):
@@ -749,14 +753,16 @@ class DataJobChain(JobChain):
                 delta_dir, forest, desi_settings, settings, qsection)
             self.qmle_jobs[forest] = QmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
-                sysopt=None, settings=settings, section=f"qmle.{forest}")
+                sysopt=None, settings=settings, section=f"qmle.{forest}",
+                jobname=f"qmle-{forest}")
 
             # Treat all SBs the same
             sq_key = forest[:2]
             if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
                 self.sq_jobs[sq_key] = SQJob(
                     delta_dir, self.qsonic_jobs[forest].outdelta_dir,
-                    sysopt=None, settings=settings, section=f"qmle.{forest}")
+                    sysopt=None, settings=settings, section=f"qmle.{forest}",
+                    jobname=f"sq-job-{forest}")
 
         calibfile = f"{self.qsonic_jobs['SB3'].outdelta_dir}/attributes.fits"
         calib_forests = ['Lya', 'SB1', 'SB2', 'SB3']
@@ -771,7 +777,8 @@ class DataJobChain(JobChain):
                 f" \\\\\n--flux-calibration {calibfile}")
             self.qmle_jobs[forest] = QmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
-                sysopt=None, settings=settings, section=f"qmle.{cf}")
+                sysopt=None, settings=settings, section=f"qmle.{cf}",
+                jobname=f"qmle-{cf}")
 
     def schedule(self):
         sq_jobids = {}
