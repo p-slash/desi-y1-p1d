@@ -778,7 +778,7 @@ class DataJobChain(JobChain):
             self.qmle_jobs[forest] = QmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
-                jobname=f"qmle-{cf}")
+                jobname=f"qmle-{forest}")
 
     def schedule(self, keys_to_run=[]):
         sq_jobids = {}
@@ -786,14 +786,14 @@ class DataJobChain(JobChain):
 
         # Make sure LyaCalib runs last
         forests = list(self.qsonic_jobs.keys())
-        forests.sort(key=lambda x: (x.endswith("Calib"), x))
 
         if keys_to_run:
-            keys_to_run.sort(key=lambda x: (x.endswith("Calib"), x))
             keys_to_run = set(keys_to_run)
             assert all(_ in forests for _ in keys_to_run)
 
-            forests = keys_to_run
+            forests = list(keys_to_run)
+
+        forests.sort(key=lambda x: (x.endswith("Calib"), x))
 
         for forest in forests:
             qsonic_job = self.qsonic_jobs[forest]
