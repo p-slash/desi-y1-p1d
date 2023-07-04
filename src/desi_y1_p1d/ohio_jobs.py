@@ -778,7 +778,7 @@ class DataJobChain(JobChain):
             self.qmle_jobs[forest] = QmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
-                jobname=f"qmle-{cf}")
+                jobname=f"qmle-{forest}")
 
     def schedule(self, keys_to_run=[]):
         sq_jobids = {}
