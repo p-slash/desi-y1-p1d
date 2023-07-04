@@ -45,6 +45,10 @@ def get_parser():
         "--test", dest="queue", action="store_const", const="debug",
         help="Run on debug queue.")
     run_group.add_argument("--batch", action="store_true", help="Submit the job.")
+    run_group.add_argument(
+        "--run-only-these", nargs="*",
+        choices=['Lya', 'SB1', 'SB2', 'SB3', 'LyaCalib', 'SB1Calib', 'SB2Calib', 'SB3Calib'],
+        help="Only run passed arguments.")
 
     qsonic_group.add_argument(
         "--cont-order", type=int,
@@ -91,11 +95,9 @@ def main(options=None):
     # 7 -> all permissions for others
     umask(0o027)
 
-    settings = oh_sett.settings
-
-    job_chain = DataJobChain(args.delta_dir, settings)
+    job_chain = DataJobChain(args.delta_dir, oh_sett.settings)
     print("Setting up DataJobChain.")
-    job_chain.schedule()
+    job_chain.schedule(args.run_only_these)
     print("DataJobChain done.")
     print("==================================================")
     job_chain.save_jobids()
