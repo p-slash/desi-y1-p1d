@@ -51,7 +51,7 @@ def main(options=None):
 
     numpy_arrs = []
 
-    print(f"Iterating over files.")
+    print("Iterating over files.")
     with Pool(processes=args.nproc) as pool:
         imap_it = pool.imap(_getDLACat, all_truths)
 

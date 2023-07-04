@@ -94,8 +94,8 @@ def main(options=None):
     settings = oh_sett.settings
 
     job_chain = DataJobChain(args.delta_dir, settings)
-    print(f"Setting up DataJobChain.")
+    print("Setting up DataJobChain.")
     job_chain.schedule()
-    print(f"DataJobChain done.")
+    print("DataJobChain done.")
     print("==================================================")
     job_chain.save_jobids()
