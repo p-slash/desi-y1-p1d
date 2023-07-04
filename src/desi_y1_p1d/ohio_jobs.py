@@ -161,7 +161,7 @@ class OhioQuickquasarsJob(Job):
         script_txt += f'cd {self.transmissions_dir}\n'
         script_txt += 'echo "get list of skewers to run ..."\n\n'
 
-        script_txt += f"files=\\`ls -1 ./*/*/lya-transmission*.fits*\\`\n"
+        script_txt += "files=\\`ls -1 ./*/*/lya-transmission*.fits*\\`\n"
         script_txt += "nfiles=\\`echo \\$files | wc -w\\`\n"
         script_txt += f"nfilespernode=\\$(( \\$nfiles/{self.nodes} + 1))\n\n"
 
@@ -365,7 +365,7 @@ class QSOnicJob(Job):
             f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}")
 
         if self.is_mock:
-            qsonic_command += f" \\\\\n--mock-analysis"
+            qsonic_command += " \\\\\n--mock-analysis"
         if self.dla:
             qsonic_command += f" \\\\\n--dla-mask {self.dla}"
         if self.bal:
@@ -391,9 +391,9 @@ class QSOnicJob(Job):
         #     f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
         commands.append("source deactivate")
-        commands.append(f"getLists4QMLEfromPICCA . --nproc 128")
-        commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
-        commands.append(f"getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
+        commands.append("getLists4QMLEfromPICCA . --nproc 128")
+        commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
+        commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
 
         script_txt += " \\\\\n&& ".join(commands) + '\n'
 

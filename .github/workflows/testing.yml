@@ -36,4 +36,4 @@ jobs:
       - name: Setup mock chain
         run: |
           setup-ohio-chain -h
-          setup-ohio-chain --root-dir ./rootdir --delta-dir ./deltadir
+          setup-ohio-chain y1_iron_v0_nosyst --root-dir ./rootdir --delta-dir ./deltadir
