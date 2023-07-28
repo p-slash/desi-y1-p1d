@@ -780,12 +780,15 @@ class DataJobChain(JobChain):
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
                 jobname=f"qmle-{forest}")
 
-    def schedule(self, keys_to_run=[]):
+    def schedule(self, keys_to_run=[], no_calib_run=True):
         sq_jobids = {}
         last_qsonic_jobid = None
 
         # Make sure LyaCalib runs last
         forests = list(self.qsonic_jobs.keys())
+
+        if no_calib_run:
+            forests = [x for x in forests if not x.endswith("Calib")]
 
         if keys_to_run:
             keys_to_run = set(keys_to_run)
