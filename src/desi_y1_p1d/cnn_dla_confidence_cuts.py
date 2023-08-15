@@ -35,12 +35,18 @@ def main():
     dla_cat = fitsio.FITS(args.DLA_CAT)[1].read()
 
     wnhi = dla_cat['NHI'] > args.nhi
+
+    if "CNN_DLA_CONFIDENCE" in dla_cat.dtype.names:
+        cnn_conf_dname = "CNN_DLA_CONFIDENCE"
+    else:
+        cnn_conf_dname = "DLA_CONFIDENCE"
+
     whigh = (
-        (dla_cat['DLA_CONFIDENCE'] > args.cnn_conf_high)
+        (dla_cat[cnn_conf_dname] > args.cnn_conf_high)
         & (dla_cat['S2N'] > args.cnn_snr_divide)
     )
     wlow = (
-        (dla_cat['DLA_CONFIDENCE'] > args.cnn_conf_low)
+        (dla_cat[cnn_conf_dname] > args.cnn_conf_low)
         & (dla_cat['S2N'] <= args.cnn_snr_divide)
     )
     wall = wnhi & (whigh | wlow)
