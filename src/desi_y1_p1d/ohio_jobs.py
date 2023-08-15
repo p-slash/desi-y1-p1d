@@ -764,8 +764,9 @@ class DataJobChain(JobChain):
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
 
-        calibfile = f"{self.qsonic_jobs['SB3'].outdelta_dir}/attributes.fits"
         calib_forests = ['Lya', 'SB1', 'SB2', 'SB3']
+        ckey = max(calib_forests)
+        calibfile = f"{self.qsonic_jobs[ckey].outdelta_dir}/attributes.fits"
         for cf in calib_forests:
             forest = f"{cf}Calib"
             qsection = f"qsonic.{cf}"
