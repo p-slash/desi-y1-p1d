@@ -765,7 +765,7 @@ class DataJobChain(JobChain):
                     jobname=f"sq-job-{forest}")
 
         calib_forests = ['Lya', 'SB1', 'SB2', 'SB3']
-        ckey = max(calib_forests)
+        ckey = max(list(self.qsonic_jobs.keys()))
         calibfile = f"{self.qsonic_jobs[ckey].outdelta_dir}/attributes.fits"
         for cf in calib_forests:
             forest = f"{cf}Calib"
