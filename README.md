@@ -3,7 +3,7 @@ DESI Y1 P1D related scripts and version control.
 # Installation
 Install directly from GitHub:
 ```shell
-pip install desi_y1_p1d@git+https://github.com/p-slash/desi-y1-p1d.git
+pip install desi_y1_p1d@git+ssh://git@github.com/p-slash/desi-y1-p1d.git
 ```
 + To install a specific version, add for example `@v0.1` at the end.
 + This will automatically install [qsotools](https://github.com/p-slash/qsotools), [qsonic](https://qsonic.readthedocs.io/en/stable/installation.html) and their requirements which include `numpy, scipy, mpi4py, iminuit, ...`. However, it could be better if you setup your own environment first. Pay specific attention to `mpi4py` package that qsonic needs. Follow these [instructions](https://docs.nersc.gov/development/languages/python/parallel-python/#mpi4py-in-your-custom-conda-environment) for NERSC.
