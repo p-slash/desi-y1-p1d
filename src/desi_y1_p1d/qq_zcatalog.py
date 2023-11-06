@@ -4,6 +4,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import fitsio
+from tqdm import tqdm
 
 final_dtype = np.dtype([
     ('CHI2', 'f8'), ('COEFF', 'f8', 4), ('Z', 'f8'), ('ZERR', 'f8'),
@@ -14,7 +15,8 @@ final_dtype = np.dtype([
 
 
 def parse(options=None):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("Directory", help="Directory for spectra-16.")
     parser.add_argument(
         "SaveDirectory", help="Directory for to save final catalog.")
@@ -31,7 +33,7 @@ def one_zcatalog(fzbest):
 
     hdr1 = fts['ZBEST'].read_header()
 
-    nrows = hdr1['NAXIS']
+    nrows = hdr1['NAXIS2']
     if nrows == 0:
         fts.close()
         return None
@@ -62,7 +64,7 @@ def main(options=None):
     with Pool(processes=args.nproc) as pool:
         imap_it = pool.imap(one_zcatalog, all_truths)
 
-        for arr in imap_it:
+        for arr in tqdm(imap_it, total=len(all_truths)):
             if arr is None:
                 continue
 
