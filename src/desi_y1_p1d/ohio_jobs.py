@@ -192,8 +192,7 @@ class OhioQuickquasarsJob(Job):
         script_txt += "wait\n"
         script_txt += "echo 'END'\n\n"
 
-        command = (f"desi_zcatalog -i {relpath_to_tr}/spectra-16 "
-                   f"-o {relpath_to_tr}/zcat.fits --minimal --prefix zbest\n")
+        command = (f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}\n")
 
         if self.dla:
             command += (f"get-qq-true-dla-catalog {relpath_to_tr}/spectra-16 "
