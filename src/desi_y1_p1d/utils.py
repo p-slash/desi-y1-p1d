@@ -51,13 +51,15 @@ def get_script_text_for_master_node(command):
     return script_txt
 
 
-def save_submitter_script(
-        script_txt, outdir, fname_core,
-        env_command=None, dep_jobid=None, afterwhat="afterok"
-):
-    script_fname = f"{outdir}/run-{fname_core}.sl"
+def save_submit_script(script_txt, outdir, fname_core):
     submitter_fname = f"{outdir}/submit-{fname_core}.sh"
+    with open(submitter_fname, 'w') as f:
+        f.write(script_txt)
 
+    return submitter_fname
+
+
+def submit_script(submitter_fname, dep_jobid=None, afterwhat="afterok"):
     dependency_txt = ""
     if isinstance(dep_jobid, int) and dep_jobid > 0:
         dependency_txt = f"--dependency={afterwhat}:{dep_jobid} "
@@ -66,20 +68,8 @@ def save_submitter_script(
         if valid_deps:
             dependency_txt = f"--dependency={afterwhat}:{':'.join(valid_deps)} "
 
-    with open(submitter_fname, 'w') as f:
-        if env_command:
-            f.write(f"{env_command}\n\n")
-        f.write(f"cat > {script_fname} <<EOF\n")
-        f.write(script_txt)
-        f.write("EOF\n\n")
-        # f"job_id_current=$(sbatch {scriptname} | tr -dc '0-9')\n"
-        f.write(f"sbatch {dependency_txt}{script_fname} | tr -dc '0-9'\n")
-
-    return submitter_fname
-
-
-def submit_script(submitter_fname):
-    print(f"sh {submitter_fname}...")
-    jobid = int(subprocess.check_output(["sh", submitter_fname]))
+    command = f"{dependency_txt}{submitter_fname} | tr -dc '0-9'"
+    print(f"sbatch {command}")
+    jobid = int(subprocess.check_output(["sbatch", command]))
     print(f"JobID: {jobid}")
     return jobid

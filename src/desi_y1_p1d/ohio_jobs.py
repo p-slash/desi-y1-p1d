@@ -19,7 +19,7 @@ class Job():
     def create_directory(self, create_dir=None):
         raise NotImplementedError
 
-    def create_script(self, dep_jobid=None):
+    def create_script(self):
         raise NotImplementedError
 
     def schedule(self, dep_jobid=None):
@@ -29,11 +29,11 @@ class Job():
         if self.skip:
             self.submitter_fname = None
         else:
-            self.create_script(dep_jobid)
+            self.create_script()
 
         jobid = -1
         if self.batch and self.submitter_fname:
-            jobid = utils.submit_script(self.submitter_fname)
+            jobid = utils.submit_script(self.submitter_fname, dep_jobid)
             print(f"{self.name} job submitted with JobID: {jobid}")
 
         print("--------------------------------------------------")
@@ -136,7 +136,7 @@ class OhioQuickquasarsJob(Job):
 
         return self.desibase_dir
 
-    def create_script(self, dep_jobid=None):
+    def create_script(self):
         """ Creates and writes the script for quickquasars run. Sets self.submitter_fname.
 
         Args:
@@ -157,6 +157,7 @@ class OhioQuickquasarsJob(Job):
                    f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
                    f"--outdir {relpath_to_tr}/spectra-16 {self.OPTS_QQ}")
 
+        script_txt += f'{self.env_command}\n\n'
         script_txt += '# Change directory...\n'
         script_txt += f'cd {self.transmissions_dir}\n'
         script_txt += 'echo "get list of skewers to run ..."\n\n'
@@ -199,11 +200,8 @@ class OhioQuickquasarsJob(Job):
                         f"{relpath_to_tr} --nproc {self.nthreads}\n")
 
         script_txt += utils.get_script_text_for_master_node(command)
-
-        self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.desibase_dir, "quickquasars",
-            env_command=self.env_command,
-            dep_jobid=dep_jobid)
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, self.desibase_dir, "quickquasars")
 
         print(f"Quickquasars script is saved as {self.submitter_fname}.")
 
@@ -251,12 +249,9 @@ class OhioTransmissionsJob(Job):
 
         return self.transmissions_dir
 
-    def create_script(self, dep_jobid=None):
+    def create_script(self):
         """ Creates and writes the script for newGenDESILiteMocks run.
         Sets self.submitter_fname.
-
-        Args:
-            dep_jobid (int): Dependent JobID. Defaults to None.
 
         Returns:
             submitter_fname (str): Filename of the submitter script.
@@ -272,9 +267,8 @@ class OhioTransmissionsJob(Job):
                        f"--master-file {self.catalog} --save-qqfile --nproc {self.nthreads} "
                        f"--seed {self.seed}\n")
 
-        self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.transmissions_dir, f"gen-trans-{self.realization}",
-            dep_jobid=dep_jobid)
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, self.transmissions_dir, f"gen-trans-{self.realization}")
 
         print(f"newGenDESILiteMocks script is saved as {self.submitter_fname}.")
 
@@ -333,7 +327,7 @@ class QSOnicJob(Job):
 
         return self.outdelta_dir
 
-    def create_script(self, dep_jobid=None):
+    def create_script(self):
         """ Creates and writes the script for QSOnic run.
         Sets self.submitter_fname.
 
@@ -350,37 +344,37 @@ class QSOnicJob(Job):
         script_txt = utils.get_script_header(
             self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, self.nodes, self.queue)
 
-        commands = []
+        commands = [self.env_command]
 
         qsonic_command = (
-            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\\\n"
-            f"-i {self.indir} \\\\\n"
-            f"--catalog {self.catalog} \\\\\n"
-            f"-o {self.outdelta_dir} \\\\\n"
-            f"--rfdwave 0.8 --skip 0.2 \\\\\n"
-            f"--num-iterations 20 \\\\\n"
-            f"--cont-order {self.cont_order} \\\\\n"
-            f"--wave1 {self.wave1} --wave2 {self.wave2} \\\\\n"
+            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\n"
+            f"-i {self.indir} \\\n"
+            f"--catalog {self.catalog} \\\n"
+            f"-o {self.outdelta_dir} \\\n"
+            f"--rfdwave 0.8 --skip 0.2 \\\n"
+            f"--num-iterations 20 \\\n"
+            f"--cont-order {self.cont_order} \\\n"
+            f"--wave1 {self.wave1} --wave2 {self.wave2} \\\n"
             f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}")
 
         if self.is_mock:
-            qsonic_command += " \\\\\n--mock-analysis"
+            qsonic_command += " \\\n--mock-analysis"
         if self.dla:
-            qsonic_command += f" \\\\\n--dla-mask {self.dla}"
+            qsonic_command += f" \\\n--dla-mask {self.dla}"
         if self.bal:
-            qsonic_command += " \\\\\n--bal-mask"
+            qsonic_command += " \\\n--bal-mask"
         if self.sky:
-            qsonic_command += f" \\\\\n--sky-mask {self.sky}"
+            qsonic_command += f" \\\n--sky-mask {self.sky}"
         if self.coadd_arms:
-            qsonic_command += f" \\\\\n--coadd-arms {self.coadd_arms}"
+            qsonic_command += f" \\\n--coadd-arms {self.coadd_arms}"
         if self.skip_resomat:
-            qsonic_command += " \\\\\n--skip-resomat"
+            qsonic_command += " \\\n--skip-resomat"
         if self.fiducial_meanflux:
-            qsonic_command += f" \\\\\n--fiducial-meanflux {self.fiducial_meanflux}"
+            qsonic_command += f" \\\n--fiducial-meanflux {self.fiducial_meanflux}"
         if self.fiducial_varlss:
-            qsonic_command += f" \\\\\n--fiducial-varlss {self.fiducial_varlss}"
+            qsonic_command += f" \\\n--fiducial-varlss {self.fiducial_varlss}"
         if self.extra_opts:
-            qsonic_command += f" \\\\\n{self.extra_opts}"
+            qsonic_command += f" \\\n{self.extra_opts}"
 
         commands.append(qsonic_command)
         commands.append(f"cd {self.outdelta_dir}")
@@ -394,11 +388,10 @@ class QSOnicJob(Job):
         commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
         commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
 
-        script_txt += " \\\\\n&& ".join(commands) + '\n'
+        script_txt += " \\\n&& ".join(commands) + '\n'
 
-        self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.outdelta_dir, "qsonic-fit",
-            env_command=self.env_command, dep_jobid=dep_jobid)
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, self.outdelta_dir, "qsonic-fit")
 
         print(f"QSOnic script is saved as {self.submitter_fname}.")
 
@@ -566,7 +559,7 @@ class QmleJob(LyspeqJob):
 
         return commands
 
-    def create_script(self, dep_jobid=None):
+    def create_script(self):
         self.create_config()
 
         time_txt = timedelta(minutes=self.time)
@@ -577,18 +570,20 @@ class QmleJob(LyspeqJob):
             self.qmle_settings['OutputDir'], self.jobname,
             time_txt, self.nodes, self.queue)
 
-        commands = []
+        commands = [self.qmle_settings['env_command']]
 
         commands.append(f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
                         f"LyaPowerEstimate {self.config_file}")
         # commands.extend(self.get_bootstrap_commands())
 
-        script_txt += " \\\\\n&& ".join(commands) + '\n'
+        script_txt += " \\\n&& ".join(commands) + '\n'
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, oneup_dir, self.jobname)
 
-        self.submitter_fname = utils.save_submitter_script(
-            script_txt, oneup_dir, self.jobname,
-            env_command=self.qmle_settings['env_command'],
-            dep_jobid=dep_jobid)
+        # self.submitter_fname = utils.save_submitter_script(
+        #     script_txt, oneup_dir, self.jobname,
+        #     env_command=self.qmle_settings['env_command'],
+        #     dep_jobid=dep_jobid)
 
         print(f"QmleJob script is saved as {self.submitter_fname}.")
 
@@ -619,12 +614,11 @@ class SQJob(LyspeqJob):
             self.qmle_settings['LookUpTableDir'], self.jobname,
             time_txt, 1, self.queue)
 
+        script_txt += f"{self.qmle_settings['env_command']}\n"
         script_txt += f"srun -N 1 -n 1 -c 2 CreateSQLookUpTable {self.config_file}\n"
 
-        self.submitter_fname = utils.save_submitter_script(
-            script_txt, self.qmle_settings['LookUpTableDir'], self.jobname,
-            env_command=self.qmle_settings['env_command'],
-            dep_jobid=dep_jobid)
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, self.qmle_settings['LookUpTableDir'], self.jobname)
 
         print(f"SQJob script is saved as {self.submitter_fname}.")
 
@@ -773,8 +767,8 @@ class DataJobChain(JobChain):
             self.qsonic_jobs[forest] = QSOnicDataJob(
                 delta_dir, forest, desi_settings, settings, qsection)
             self.qsonic_jobs[forest].extra_opts += (
-                f" \\\\\n--noise-calibration {calibfile}"
-                f" \\\\\n--flux-calibration {calibfile}")
+                f" \\\n--noise-calibration {calibfile}"
+                f" \\\n--flux-calibration {calibfile}")
             self.qmle_jobs[forest] = QmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
