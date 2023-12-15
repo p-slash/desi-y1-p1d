@@ -1,6 +1,7 @@
 from os import makedirs
 import os.path
 import glob
+import time
 from datetime import timedelta, datetime
 
 from desi_y1_p1d import utils
@@ -35,6 +36,8 @@ class Job():
         if self.batch and self.submitter_fname:
             jobid = utils.submit_script(self.submitter_fname, dep_jobid)
             print(f"{self.name} job submitted with JobID: {jobid}")
+            # limit slurm pings
+            time.sleep(40)
 
         print("--------------------------------------------------")
         return jobid
