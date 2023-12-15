@@ -300,6 +300,7 @@ class QSOnicJob(Job):
         self.sky = qsonic_settings['sky-mask']
         self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
         self.env_command = qsonic_settings['env_command']
+        self.tile_format = False
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -362,6 +363,8 @@ class QSOnicJob(Job):
 
         if self.is_mock:
             qsonic_command += " \\\n--mock-analysis"
+        if self.tile_format:
+            qsonic_command += " \\\n--tile-format"
         if self.dla:
             qsonic_command += f" \\\n--dla-mask {self.dla}"
         if self.bal:
@@ -438,7 +441,13 @@ class QSOnicDataJob(QSOnicJob):
 
         self.catalog = desi_settings['catalog']
 
-        self.indir = f"{desi_settings['redux']}/{desi_settings['release']}/healpix"
+        if desi_settings['survey'] == "tiles":
+            self.indir = f"{desi_settings['redux']}/{desi_settings['release']}/tiles/cumulative"
+            self.tile_format = True
+        else:
+            self.indir = f"{desi_settings['redux']}/{desi_settings['release']}/healpix"
+            self.tile_format = False
+
         self.interm_path = utils.get_folder_structure_data(
             desi_settings['release'], desi_settings['survey'], self.catalog)
         self.outdelta_dir = os.path.join(
@@ -802,6 +811,69 @@ class DataJobChain(JobChain):
             last_qsonic_jobid = self.schedule_job(qsonic_job, last_qsonic_jobid)
 
             sq_key = forest[:2]
+            sq_job = self.sq_jobs.pop(sq_key, None)
+            if sq_job:
+                sq_jobids[sq_key] = self.schedule_job(sq_job)
+
+            jobid_sq = sq_jobids.get(sq_key, -1)
+
+            _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+
+
+class DataSplitJobChain(JobChain):
+    def __init__(self, delta_dir, settings):
+        super().__init__(delta_dir)
+
+        desi_settings = settings['desi']
+        nsplits = desi_settings['number of splits']
+        qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
+
+        self.qsonic_jobs = {}
+        self.qmle_jobs = {}
+        self.sq_jobs = {}
+        for qsection in qsonic_sections:
+            forest = qsection[len("qsonic."):]
+
+            for ii in range(nsplits):
+                key = f"{forest}-s{ii}"
+                sett_this = desi_settings.copy()
+                sett_this['catalog'] = f"f{desi_settings}{ii}.fits"
+                self.qsonic_jobs[key] = QSOnicDataJob(
+                    delta_dir, forest, sett_this, settings, qsection)
+                self.qmle_jobs[key] = QmleJob(
+                    delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+                    sysopt=None, settings=settings, section=f"qmle.{forest}",
+                    jobname=f"qmle-{forest}")
+
+            # Treat all SBs the same
+            sq_key = forest[:2]
+            if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
+                self.sq_jobs[sq_key] = SQJob(
+                    delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+                    sysopt=None, settings=settings, section=f"qmle.{forest}",
+                    jobname=f"sq-job-{forest}")
+
+        # Calibration passed explicitly
+
+    def schedule(self, keys_to_run=[]):
+        sq_jobids = {}
+        last_qsonic_jobid = None
+
+        keys = list(self.qsonic_jobs.keys())
+
+        if keys_to_run:
+            keys_to_run = set(keys_to_run)
+            assert all(_ in keys for _ in keys_to_run)
+
+            keys = list(keys_to_run)
+
+        for key in keys:
+            qsonic_job = self.qsonic_jobs[key]
+            qmle_job = self.qmle_jobs[key]
+
+            last_qsonic_jobid = self.schedule_job(qsonic_job, last_qsonic_jobid)
+
+            sq_key = key[:2]
             sq_job = self.sq_jobs.pop(sq_key, None)
             if sq_job:
                 sq_jobids[sq_key] = self.schedule_job(sq_job)
