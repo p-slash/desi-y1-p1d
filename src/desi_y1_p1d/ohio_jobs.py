@@ -296,6 +296,7 @@ class QSOnicJob(Job):
         self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
         self.env_command = qsonic_settings['env_command']
         self.tile_format = False
+        self.calibfile = qsonic_settings.get("calibration", fallback=None)
 
         self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
@@ -375,6 +376,9 @@ class QSOnicJob(Job):
             qsonic_command += f" \\\n--fiducial-meanflux {self.fiducial_meanflux}"
         if self.fiducial_varlss:
             qsonic_command += f" \\\n--fiducial-varlss {self.fiducial_varlss}"
+        if self.calibfile:
+            qsonic_command += (f" \\\n--noise-calibration {self.calibfile}"
+                               f" \\\n--flux-calibration {self.calibfile}")
         if self.extra_opts:
             qsonic_command += f" \\\n{self.extra_opts}"
 
@@ -577,12 +581,18 @@ class QmleJob(LyspeqJob):
         script_txt = utils.get_script_header(
             self.qmle_settings['OutputDir'], self.jobname,
             time_txt, self.nodes, self.queue)
+        cpus_pt = 256 // (self.nthreads // self.nodes)
+
         script_txt += f"{self.qmle_settings['env_command']}\n\n"
+        script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
+                       "export OMP_PLACES=threads\n"
+                       "export OMP_PROC_BIND=spread\n\n")
 
         commands = []
 
-        commands.append(f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
-                        f"LyaPowerEstimate {self.config_file}")
+        commands.append(
+            f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
+            f"LyaPowerEstimate {self.config_file}")
         # commands.extend(self.get_bootstrap_commands())
 
         script_txt += " \\\n&& ".join(commands) + '\n'
@@ -830,11 +840,15 @@ class DataSplitJobChain(JobChain):
         self.sq_jobs = {}
         for qsection in qsonic_sections:
             forest = qsection[len("qsonic."):]
+            calibfile_base = settings[qsection].get("calibration")
 
             any_needs_sqjob = False
             for ii in range(nsplits):
                 key = f"{forest}-s{ii}"
                 desi_settings['catalog'] = f"{catalog_base}{ii}.fits"
+                if calibfile_base:
+                    settings[qsection]['calibration'] = f"{calibfile_base}{ii}.fits"
+
                 self.qsonic_jobs[key] = QSOnicDataJob(
                     delta_dir, forest, desi_settings, settings, qsection)
                 self.qmle_jobs[key] = QmleJob(
