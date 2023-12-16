@@ -1,7 +1,6 @@
 from os import makedirs
 import os.path
 import glob
-import time
 from datetime import timedelta, datetime
 
 from desi_y1_p1d import utils
@@ -32,13 +31,9 @@ class Job():
         else:
             self.create_script()
 
-        jobid = -1
-        if self.batch and self.submitter_fname:
-            jobid = utils.submit_script(self.submitter_fname, dep_jobid)
-            print(f"{self.name} job submitted with JobID: {jobid}")
-            # limit slurm pings
-            time.sleep(40)
-
+        skip = not (self.batch and self.submitter_fname)
+        jobid = utils.submit_script(self.submitter_fname, dep_jobid, skip=skip)
+        print(f"{self.name} job submitted with JobID: {jobid}")
         print("--------------------------------------------------")
         return jobid
 
@@ -348,7 +343,8 @@ class QSOnicJob(Job):
         script_txt = utils.get_script_header(
             self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, self.nodes, self.queue)
 
-        commands = [self.env_command]
+        script_txt += f'{self.env_command}\n\n'
+        commands = []
 
         qsonic_command = (
             f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\n"
@@ -581,8 +577,9 @@ class QmleJob(LyspeqJob):
         script_txt = utils.get_script_header(
             self.qmle_settings['OutputDir'], self.jobname,
             time_txt, self.nodes, self.queue)
+        script_txt += f"{self.qmle_settings['env_command']}\n\n"
 
-        commands = [self.qmle_settings['env_command']]
+        commands = []
 
         commands.append(f"srun -N {self.nodes} -n {self.nthreads} -c 2 "
                         f"LyaPowerEstimate {self.config_file}")
@@ -712,7 +709,6 @@ class MockJobChain(JobChain):
                     jobname="sq-job")
 
     def schedule(self):
-        jobid = -1
         if self.sq_job:
             self.sq_jobid = self.schedule_job(self.sq_job)
             self.sq_job = None
@@ -825,7 +821,8 @@ class DataSplitJobChain(JobChain):
         super().__init__(delta_dir)
 
         desi_settings = settings['desi']
-        nsplits = desi_settings['number of splits']
+        catalog_base = desi_settings['catalog']
+        nsplits = desi_settings.getint('number of splits')
         qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
 
         self.qsonic_jobs = {}
@@ -834,22 +831,23 @@ class DataSplitJobChain(JobChain):
         for qsection in qsonic_sections:
             forest = qsection[len("qsonic."):]
 
+            any_needs_sqjob = False
             for ii in range(nsplits):
                 key = f"{forest}-s{ii}"
-                sett_this = desi_settings.copy()
-                sett_this['catalog'] = f"f{desi_settings}{ii}.fits"
+                desi_settings['catalog'] = f"{catalog_base}{ii}.fits"
                 self.qsonic_jobs[key] = QSOnicDataJob(
-                    delta_dir, forest, sett_this, settings, qsection)
+                    delta_dir, forest, desi_settings, settings, qsection)
                 self.qmle_jobs[key] = QmleJob(
-                    delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+                    delta_dir, self.qsonic_jobs[key].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
-                    jobname=f"qmle-{forest}")
+                    jobname=f"qmle-{key}")
+                any_needs_sqjob |= self.qmle_jobs[key].needs_sqjob()
 
             # Treat all SBs the same
             sq_key = forest[:2]
-            if sq_key not in self.sq_jobs and self.qmle_jobs[forest].needs_sqjob():
+            if sq_key not in self.sq_jobs and any_needs_sqjob:
                 self.sq_jobs[sq_key] = SQJob(
-                    delta_dir, self.qsonic_jobs[forest].outdelta_dir,
+                    delta_dir, self.qsonic_jobs[key].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
 

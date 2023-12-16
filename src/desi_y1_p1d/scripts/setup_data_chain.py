@@ -1,7 +1,7 @@
 import argparse
 from os import umask
 
-from desi_y1_p1d.ohio_jobs import DataJobChain
+from desi_y1_p1d.ohio_jobs import DataJobChain, DataSplitJobChain
 from desi_y1_p1d.settings import DesiDataSettings
 
 
@@ -95,7 +95,10 @@ def main(options=None):
     # 7 -> all permissions for others
     umask(0o027)
 
-    job_chain = DataJobChain(args.delta_dir, oh_sett.settings)
+    if "tile" in args.Setting:
+        job_chain = DataSplitJobChain(args.delta_dir, oh_sett.settings)
+    else:
+        job_chain = DataJobChain(args.delta_dir, oh_sett.settings)
     print("Setting up DataJobChain.")
     job_chain.schedule(args.run_only_these)
     print("DataJobChain done.")

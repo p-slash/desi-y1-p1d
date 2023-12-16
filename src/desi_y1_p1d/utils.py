@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 
 def _get_catalog_short(catalog):
@@ -59,7 +60,9 @@ def save_submit_script(script_txt, outdir, fname_core):
     return submitter_fname
 
 
-def submit_script(submitter_fname, dep_jobid=None, afterwhat="afterok"):
+def submit_script(
+        submitter_fname, dep_jobid=None, afterwhat="afterok", skip=False
+):
     dependency_txt = ""
     if isinstance(dep_jobid, int) and dep_jobid > 0:
         dependency_txt = f"--dependency={afterwhat}:{dep_jobid} "
@@ -70,6 +73,11 @@ def submit_script(submitter_fname, dep_jobid=None, afterwhat="afterok"):
 
     command = f"{dependency_txt}{submitter_fname} | tr -dc '0-9'"
     print(f"sbatch {command}")
-    jobid = int(subprocess.check_output(["sbatch", command]))
+    if skip:
+        jobid = -1
+    else:
+        jobid = int(subprocess.check_output(["sbatch", command]))
+        # limit slurm pings
+        time.sleep(40)
     print(f"JobID: {jobid}")
     return jobid
