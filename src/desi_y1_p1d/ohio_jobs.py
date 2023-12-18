@@ -22,14 +22,15 @@ class Job():
     def create_script(self):
         raise NotImplementedError
 
+    def setup(self):
+        if self.skip:
+            return
+
+        self.create_directory()
+        self.create_script()
+
     def schedule(self, dep_jobid=None):
         print(f"Setting up a {self.name} job...")
-        self.create_directory(not self.skip)
-
-        if self.skip:
-            self.submitter_fname = None
-        else:
-            self.create_script()
 
         skip = not (self.batch and self.submitter_fname)
         jobid = utils.submit_script(self.submitter_fname, dep_jobid, skip=skip)
@@ -203,8 +204,6 @@ class OhioQuickquasarsJob(Job):
 
         print(f"Quickquasars script is saved as {self.submitter_fname}.")
 
-        return self.submitter_fname
-
 
 class OhioTransmissionsJob(Job):
     def __init__(self, rootdir, realization, settings):
@@ -269,8 +268,6 @@ class OhioTransmissionsJob(Job):
             script_txt, self.transmissions_dir, f"gen-trans-{self.realization}")
 
         print(f"newGenDESILiteMocks script is saved as {self.submitter_fname}.")
-
-        return self.submitter_fname
 
 
 class QSOnicJob(Job):
@@ -394,8 +391,6 @@ class QSOnicJob(Job):
             script_txt, self.outdelta_dir, "qsonic-fit")
 
         print(f"QSOnic script is saved as {self.submitter_fname}.")
-
-        return self.submitter_fname
 
 
 class QSOnicMockJob(QSOnicJob):
@@ -602,8 +597,6 @@ class QmleJob(LyspeqJob):
 
         print(f"QmleJob script is saved as {self.submitter_fname}.")
 
-        return self.submitter_fname
-
     def needs_sqjob(self):
         files_exits = True
         files_exits &= os.path.exists(
@@ -649,8 +642,6 @@ class SQJob(LyspeqJob):
             script_txt, self.qmle_settings['LookUpTableDir'], self.jobname)
 
         print(f"SQJob script is saved as {self.submitter_fname}.")
-
-        return self.submitter_fname
 
 
 class JobChain():
@@ -727,6 +718,20 @@ class MockJobChain(JobChain):
                     delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
                     jobname="sq-job")
 
+        self.setup()
+
+    def setup(self):
+        self.tr_job.setup()
+        self.qq_job.setup()
+
+        for item in self.qsonic_qmle_jobs.values():
+            qsonic_job, qmle_job = item
+            qsonic_job.setup()
+            qmle_job.setup()
+
+        if self.sq_job:
+            self.sq_job.setup()
+
     def schedule(self):
         if self.sq_job:
             self.sq_jobid = self.schedule_job(self.sq_job)
@@ -801,6 +806,16 @@ class DataJobChain(JobChain):
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
                 jobname=f"qmle-{forest}")
 
+        self.setup()
+
+    def setup(self):
+        for job in self.qsonic_jobs.values():
+            job.setup()
+        for job in self.qmle_jobs.values():
+            job.setup()
+        for job in self.sq_jobs.values():
+            job.setup()
+
     def schedule(self, keys_to_run=[], no_calib_run=True):
         sq_jobids = {}
         last_qsonic_jobid = None
@@ -869,12 +884,22 @@ class DataSplitJobChain(JobChain):
             # Treat all SBs the same
             sq_key = forest[:2]
             if sq_key not in self.sq_jobs and any_needs_sqjob:
+                key = f"{forest}-s0"
                 self.sq_jobs[sq_key] = SQJob(
                     delta_dir, self.qsonic_jobs[key].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
 
         # Calibration passed explicitly
+        self.setup()
+
+    def setup(self):
+        for job in self.qsonic_jobs.values():
+            job.setup()
+        for job in self.qmle_jobs.values():
+            job.setup()
+        for job in self.sq_jobs.values():
+            job.setup()
 
     def schedule(self, keys_to_run=[]):
         sq_jobids = {}
