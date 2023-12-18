@@ -15,6 +15,7 @@ class Job():
         self.queue = settings[section]['queue']
         self.batch = settings.getboolean(section, 'batch')
         self.skip = settings.getboolean(section, 'skip', fallback=False)
+        self.submitter_fname = None
 
     def create_directory(self, create_dir=None):
         raise NotImplementedError
@@ -140,9 +141,6 @@ class OhioQuickquasarsJob(Job):
 
         Args:
             dep_jobid (int): Dependent JobID. Defaults to None.
-
-        Returns:
-            submitter_fname (str): Filename of the submitter script.
         """
         time_txt = timedelta(minutes=self.time)
 
@@ -249,9 +247,6 @@ class OhioTransmissionsJob(Job):
     def create_script(self):
         """ Creates and writes the script for newGenDESILiteMocks run.
         Sets self.submitter_fname.
-
-        Returns:
-            submitter_fname (str): Filename of the submitter script.
         """
         time_txt = timedelta(minutes=self.time)
 
@@ -330,9 +325,6 @@ class QSOnicJob(Job):
 
         Args:
             dep_jobid (int): Dependent JobID. Defaults to None.
-
-        Returns:
-            submitter_fname (str): Filename of the submitter script.
         """
         if self.outdelta_dir is None:
             return None
