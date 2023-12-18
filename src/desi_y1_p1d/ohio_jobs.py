@@ -383,16 +383,10 @@ class QSOnicJob(Job):
             qsonic_command += f" \\\n{self.extra_opts}"
 
         commands.append(qsonic_command)
-        commands.append(f"cd {self.outdelta_dir}")
         # commands.append(
         #     f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
         #     f"-i . -o ./var_stats \\\\\n"
         #     f"--wave1 {self.wave1} --wave2 {self.wave2}")
-
-        commands.append("source deactivate")
-        commands.append("getLists4QMLEfromPICCA . --nproc 128")
-        commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1")
-        commands.append("getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2")
 
         script_txt += " \\\n&& ".join(commands) + '\n'
 
@@ -464,6 +458,7 @@ class LyspeqJob(Job):
         super().__init__(settings, section)
         sb_suff = "-sb" if "SB" in section else ""
         self.jobname = jobname
+        self.rootdir = rootdir
         self.qmle_settings = dict(settings[section])
         self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
@@ -583,6 +578,7 @@ class QmleJob(LyspeqJob):
             time_txt, self.nodes, self.queue)
         cpus_pt = 256 // (self.nthreads // self.nodes)
 
+        script_txt += self.get_filelist_script_txt()
         script_txt += f"{self.qmle_settings['env_command']}\n\n"
         script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
                        "export OMP_PLACES=threads\n"
@@ -621,6 +617,19 @@ class QmleJob(LyspeqJob):
         files_exits &= len(deriv_files) == expected_nk
 
         return not files_exits
+
+    def get_filelist_script_txt(self):
+        if os.path.exists(self.qmle_settings['FileNameList']):
+            return ""
+
+        script_txt = " \\\n&& ".join([
+            f"cd {self.qmle_settings['FileInputDir']}",
+            "getLists4QMLEfromPICCA . --nproc 128",
+            "getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1",
+            "getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2"
+        ]) + f'\n\ncd {self.rootdir}\n\n'
+
+        return script_txt
 
 
 class SQJob(LyspeqJob):
