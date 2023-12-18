@@ -71,13 +71,21 @@ def submit_script(
         if valid_deps:
             dependency_txt = f"--dependency={afterwhat}:{':'.join(valid_deps)} "
 
-    command = f"{dependency_txt}{submitter_fname} | tr -dc '0-9'"
-    print(f"sbatch {command}")
+    command = f"sbatch {dependency_txt}{submitter_fname} | tr -dc '0-9'"
+    print(command)
     if skip:
         jobid = -1
     else:
-        jobid = int(subprocess.check_output(["sbatch", command]))
+        process = subprocess.run(command, shell=True, capture_output=True)
+        if process.returncode != 0:
+            raise ValueError(
+                f'Running "{command}" returned non-zero exitcode '
+                f'with error {process.stderr}')
+
+        jobid = int(process.stdout)
+
         # limit slurm pings
         time.sleep(40)
+
     print(f"JobID: {jobid}")
     return jobid
