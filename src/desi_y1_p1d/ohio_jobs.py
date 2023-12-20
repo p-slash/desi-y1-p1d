@@ -31,9 +31,13 @@ class Job():
         self.create_script()
 
     def schedule(self, dep_jobid=None, hold=False):
+        skip = not (self.batch and self.submitter_fname)
+
+        if skip:
+            return -1
+
         print(f"Setting up a {self.name} job...")
 
-        skip = not (self.batch and self.submitter_fname)
         jobid = utils.submit_script(
             self.submitter_fname, dep_jobid, skip=skip, hold=hold)
         print(f"{self.name} job submitted with JobID: {jobid}")
@@ -126,10 +130,10 @@ class OhioQuickquasarsJob(Job):
             return self.desibase_dir
 
         # make directories to store logs and spectra
-        print("Creating directories:")
-        print(f"+ {self.desibase_dir}")
-        print(f"+ {self.desibase_dir}/logs")
-        print(f"+ {self.desibase_dir}/spectra-16")
+        # print("Creating directories:")
+        # print(f"+ {self.desibase_dir}")
+        # print(f"+ {self.desibase_dir}/logs")
+        # print(f"+ {self.desibase_dir}/spectra-16")
 
         makedirs(self.desibase_dir, exist_ok=True)
         makedirs(f"{self.desibase_dir}/logs", exist_ok=True)
@@ -239,8 +243,8 @@ class OhioTransmissionsJob(Job):
 
     def create_directory(self, create_dir=True):
         if create_dir:
-            print("Creating directories:")
-            print(f"+ {self.transmissions_dir}")
+            # print("Creating directories:")
+            # print(f"+ {self.transmissions_dir}")
             makedirs(self.transmissions_dir, exist_ok=True)
 
         return self.transmissions_dir
@@ -313,8 +317,8 @@ class QSOnicJob(Job):
             return None
 
         if create_dir:
-            print("Creating directory:")
-            print(f"+ {self.outdelta_dir}")
+            # print("Creating directory:")
+            # print(f"+ {self.outdelta_dir}")
 
             makedirs(self.outdelta_dir, exist_ok=True)
 
@@ -486,9 +490,9 @@ class LyspeqJob(Job):
             return
 
         # make directories to store outputs and lookup tables
-        print("Creating directories:")
-        print(f"+ {self.qmle_settings['OutputDir']}")
-        print(f"+ {self.qmle_settings['LookUpTableDir']}")
+        # print("Creating directories:")
+        # print(f"+ {self.qmle_settings['OutputDir']}")
+        # print(f"+ {self.qmle_settings['LookUpTableDir']}")
 
         makedirs(self.qmle_settings['OutputDir'], exist_ok=True)
         makedirs(self.qmle_settings['LookUpTableDir'], exist_ok=True)
