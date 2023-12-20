@@ -3,14 +3,14 @@ import time
 
 
 def execute_command(command):
-    process = subprocess.run(command, shell=True, capture_output=True)
+    process = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     if process.returncode != 0:
         raise ValueError(
             f'Running "{command}" returned non-zero exitcode '
             f'with error {process.stderr}')
 
-    processstdout = str(process.stdout)
+    processstdout = process.stdout
     if "error" in processstdout:
         raise Exception(processstdout)
 
@@ -100,7 +100,7 @@ def submit_script(
         processstdout = execute_command(command)
 
         # Submitted batch job 19583619
-        jobid = int(str(processstdout).split(' ')[-1])
+        jobid = int(str(processstdout).split(' ')[-1].strip())
 
         # limit slurm pings
         time.sleep(10)
