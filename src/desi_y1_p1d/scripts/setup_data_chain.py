@@ -50,6 +50,9 @@ def get_parser():
         "--run-only-these", nargs="*",
         choices=['Lya', 'SB1', 'SB2', 'SB3', 'LyaCalib', 'SB1Calib', 'SB2Calib', 'SB3Calib'],
         help="Only run passed arguments.")
+    run_group.add_argument(
+        "--resume-idx", type=int, default=0,
+        help="Starting index to resume for data split.")
 
     qsonic_group.add_argument(
         "--cont-order", type=int,
@@ -97,12 +100,15 @@ def main(options=None):
     umask(0o027)
     args.delta_dir = os.path.realpath(args.delta_dir)
 
+    print("Setting up DataJobChain.", flush=True)
+
     if "tile" in args.Setting:
         job_chain = DataSplitJobChain(args.delta_dir, oh_sett.settings)
+        job_chain.schedule(args.run_only_these, args.resume_idx)
     else:
         job_chain = DataJobChain(args.delta_dir, oh_sett.settings)
-    print("Setting up DataJobChain.")
-    job_chain.schedule(args.run_only_these)
+        job_chain.schedule(args.run_only_these)
+
     print("DataJobChain done.")
     print("==================================================")
     job_chain.save_jobids()

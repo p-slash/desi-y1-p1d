@@ -2,6 +2,20 @@ import subprocess
 import time
 
 
+def execute_command(command):
+    process = subprocess.run(command, shell=True, capture_output=True)
+
+    if process.returncode != 0:
+        raise ValueError(
+            f'Running "{command}" returned non-zero exitcode '
+            f'with error {process.stderr}')
+
+    if "error" in process.stdout:
+        raise Exception(process.stdout)
+
+    return process.stdout
+
+
 def _get_catalog_short(catalog):
     catalog_short = catalog.split('/')[-1]
     jj = catalog_short.rfind(".fits")
@@ -61,7 +75,8 @@ def save_submit_script(script_txt, outdir, fname_core):
 
 
 def submit_script(
-        submitter_fname, dep_jobid=None, afterwhat="afterok", skip=False
+        submitter_fname, dep_jobid=None, afterwhat="afterok",
+        skip=False, hold=False
 ):
     dependency_txt = ""
     if isinstance(dep_jobid, int) and dep_jobid > 0:
@@ -71,21 +86,21 @@ def submit_script(
         if valid_deps:
             dependency_txt = f"--dependency={afterwhat}:{':'.join(valid_deps)} "
 
-    command = f"sbatch {dependency_txt}{submitter_fname} | tr -dc '0-9'"
+    if hold:
+        hold_txt = "--hold "
+
+    command = f"sbatch {hold_txt}{dependency_txt}{submitter_fname}"
     print(command)
     if skip:
         jobid = -1
     else:
-        process = subprocess.run(command, shell=True, capture_output=True)
-        if process.returncode != 0:
-            raise ValueError(
-                f'Running "{command}" returned non-zero exitcode '
-                f'with error {process.stderr}')
+        processstdout = execute_command(command)
 
-        jobid = int(process.stdout)
+        # Submitted batch job 19583619
+        jobid = int(str(processstdout).split(' ')[-1])
 
         # limit slurm pings
-        time.sleep(40)
+        time.sleep(10)
 
     print(f"JobID: {jobid}")
     return jobid

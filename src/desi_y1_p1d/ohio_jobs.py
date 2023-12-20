@@ -30,11 +30,12 @@ class Job():
         self.create_directory()
         self.create_script()
 
-    def schedule(self, dep_jobid=None):
+    def schedule(self, dep_jobid=None, hold=False):
         print(f"Setting up a {self.name} job...")
 
         skip = not (self.batch and self.submitter_fname)
-        jobid = utils.submit_script(self.submitter_fname, dep_jobid, skip=skip)
+        jobid = utils.submit_script(
+            self.submitter_fname, dep_jobid, skip=skip, hold=hold)
         print(f"{self.name} job submitted with JobID: {jobid}")
         print("--------------------------------------------------")
         return jobid
@@ -640,12 +641,24 @@ class JobChain():
     def __init__(self, parentdir):
         self.parentdir = parentdir
         self.all_jobids = []
+        self.held_jobids = []
 
-    def schedule_job(self, job, dep_jobid=None):
-        jobid = job.schedule(dep_jobid=dep_jobid)
+    def schedule_job(self, job, dep_jobid=None, hold=False):
+        jobid = job.schedule(dep_jobid=dep_jobid, hold=hold)
         if jobid != -1:
             self.all_jobids.append(jobid)
+            if hold:
+                self.held_jobids.append(jobid)
         return jobid
+
+    def releaseHeldJobs(self):
+        if not self.held_jobids:
+            print("No held jobs to release")
+            return
+
+        jobids_txt = ",".join([str(j) for j in self.held_jobids])
+        command = f"scontrol release {jobids_txt}"
+        print(utils.execute_command(command))
 
     def save_jobids(self):
         if not self.all_jobids:
@@ -893,7 +906,7 @@ class DataSplitJobChain(JobChain):
         for job in self.sq_jobs.values():
             job.setup()
 
-    def schedule(self, keys_to_run=[]):
+    def schedule(self, keys_to_run=[], i1=0):
         sq_jobids = {}
         last_qsonic_jobid = None
 
@@ -905,6 +918,9 @@ class DataSplitJobChain(JobChain):
 
             keys = list(keys_to_run)
 
+        if i1 > 0:
+            keys = [_ for _ in keys if int(_.split('-s')[-1]) >= i1]
+
         for key in keys:
             qsonic_job = self.qsonic_jobs[key]
             qmle_job = self.qmle_jobs[key]
@@ -914,8 +930,10 @@ class DataSplitJobChain(JobChain):
             sq_key = key[:2]
             sq_job = self.sq_jobs.pop(sq_key, None)
             if sq_job:
-                sq_jobids[sq_key] = self.schedule_job(sq_job)
+                sq_jobids[sq_key] = self.schedule_job(sq_job, hold=True)
 
             jobid_sq = sq_jobids.get(sq_key, -1)
 
             _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+
+        self.releaseHeldJobs()
