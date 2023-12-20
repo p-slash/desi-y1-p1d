@@ -88,6 +88,8 @@ def submit_script(
 
     if hold:
         hold_txt = "--hold "
+    else:
+        hold_txt = ""
 
     command = f"sbatch {hold_txt}{dependency_txt}{submitter_fname}"
     print(command)
