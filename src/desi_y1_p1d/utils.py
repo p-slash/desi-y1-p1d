@@ -10,10 +10,11 @@ def execute_command(command):
             f'Running "{command}" returned non-zero exitcode '
             f'with error {process.stderr}')
 
-    if "error" in process.stdout:
-        raise Exception(process.stdout)
+    processstdout = str(process.stdout)
+    if "error" in processstdout:
+        raise Exception(processstdout)
 
-    return process.stdout
+    return processstdout
 
 
 def _get_catalog_short(catalog):
