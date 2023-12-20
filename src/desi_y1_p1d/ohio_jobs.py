@@ -677,10 +677,9 @@ class JobChain():
         script_txt = utils.get_script_header(
             self.parentdir, "summary-job", "00:02:00", 1, "debug")
         script_txt += command
-        submitter_fname = utils.save_submitter_script(
-            script_txt, self.parentdir, f"summary-job-{datestamp}",
-            dep_jobid=self.all_jobids, afterwhat="afterany")
-        utils.submit_script(submitter_fname)
+        submitter_fname = utils.save_submit_script(
+            script_txt, self.parentdir, f"summary-job-{datestamp}")
+        utils.submit_script(submitter_fname, self.all_jobids, "afterany")
 
 
 class MockJobChain(JobChain):
