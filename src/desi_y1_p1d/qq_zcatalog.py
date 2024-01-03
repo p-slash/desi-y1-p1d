@@ -6,6 +6,9 @@ import numpy as np
 import fitsio
 from tqdm import tqdm
 
+from numpy.lib.recfunctions import rename_fields, merge_arrays
+
+
 final_dtype = np.dtype([
     ('CHI2', 'f8'), ('COEFF', 'f8', 4), ('Z', 'f8'), ('ZERR', 'f8'),
     ('ZWARN', 'i8'), ('TARGETID', 'i8'),
@@ -53,32 +56,89 @@ def one_zcatalog(fzbest):
     return newdata
 
 
+def one_truth_catalog(ftruth):
+    fts = fitsio.FITS(ftruth)
+    dla_out = None
+    bal_out = None
+
+    if 'DLA_META' in fts:
+        hdr_dla = fts['DLA_META'].read_header()
+        nrows = hdr_dla['NAXIS']
+        if nrows != 0:
+            dla_out = fts['DLA_META'].read()
+            dla_out = rename_fields(dla_out, {'Z_DLA': 'Z'})
+
+    if 'BAL_META' in fts:
+        hdr_bal = fts['BAL_META'].read_header()
+        nrows = hdr_bal['NAXIS']
+        if nrows != 0:
+            bal_out = fts['BAL_META'].read()
+            bal_out = rename_fields(bal_out, {'Z_DLA': 'Z'})
+
+    fts.close()
+
+    return dla_out, bal_out
+
+
+def save_data(list_of_arr, fname, what, extname):
+    if not list_of_arr:
+        print(f"No {what} catalog")
+        return None
+
+    final_data = np.concatenate(list_of_arr)
+    print(f"There are {final_data.size} {what}s.")
+
+    with fitsio.FITS(fname, 'rw', clobber=True) as fts:
+        fts.write(final_data, extname=extname)
+
+    print(f"{what} catalog saved as {fname}.")
+
+    return final_data
+
+
 def main(options=None):
     args = parse(options)
 
-    all_truths = glob.glob(f"{args.Directory}/*/*/{args.prefix}-*.fits*")
+    all_zbests = glob.glob(f"{args.Directory}/*/*/{args.prefix}-*.fits*")
+    all_truths = glob.glob(f"{args.Directory}/*/*/truth-*.fits*")
 
-    numpy_arrs = []
+    zcat_list = []
+    dlacat_list = []
+    balcat_list = []
 
     print("Iterating over files.")
     with Pool(processes=args.nproc) as pool:
-        imap_it = pool.imap(one_zcatalog, all_truths)
+        imap_it = pool.imap(one_zcatalog, all_zbests)
 
-        for arr in tqdm(imap_it, total=len(all_truths)):
+        for arr in tqdm(imap_it, total=len(all_zbests), desc="zcat"):
             if arr is None:
                 continue
 
-            numpy_arrs.append(arr)
+            zcat_list.append(arr)
 
-    nqsos = 0
-    for arr in numpy_arrs:
-        nqsos += arr.size
+        imap_it = pool.imap(one_truth_catalog, all_truths)
 
-    print(f"There are {nqsos} quasars.")
+        for dla_out, bal_out in tqdm(imap_it, total=len(all_truths), desc="truth"):
+            if dla_out is not None:
+                dlacat_list.append(dla_out)
 
-    final_data = np.concatenate(numpy_arrs)
+            if bal_out is not None:
+                balcat_list.append(bal_out)
+
+    zcat = save_data(
+        zcat_list, f"{args.SaveDirectory}/zcat.fits", "quasar", "ZCATALOG")
+    _ = save_data(
+        dlacat_list, f"{args.SaveDirectory}/dla_cat.fits", "DLA", "DLACAT")
+    bal_cat = save_data(
+        balcat_list, f"{args.SaveDirectory}/bal_cat.fits", "BAL", "BALCAT")
+
+    if bal_cat is None:
+        return
+
+    print("Overwriting zcat.fits with appended BAL info.")
+    zcat_bal = merge_arrays((zcat, bal_cat), usemask=False)
     fname = f"{args.SaveDirectory}/zcat.fits"
     with fitsio.FITS(fname, 'rw', clobber=True) as fts:
-        fts.write(final_data, extname='ZCATALOG')
+        fts.write(zcat_bal, extname='ZCATALOG')
 
-    print(f"Quasar catalog saved as {fname}.")
+    print(f"Quasar+BAL catalog saved as {fname}.")

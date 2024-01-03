@@ -61,25 +61,13 @@ def main(options=None):
 
             numpy_arrs.append(arr)
 
-    ndlas = 0
-    for arr in numpy_arrs:
-        ndlas += arr.size
-
+    final_data = np.concatenate(numpy_arrs)
+    ndlas = final_data.size
     print(f"There are {ndlas} DLAs.")
-
-    final_data = np.empty(ndlas, dtype=final_dtype)
-    ii = 0
-    for arr in numpy_arrs:
-        nrows = arr.size
-        if nrows == 0:
-            continue
-        final_data[ii:ii + nrows] = arr
-        ii += nrows
 
     fname = f"{args.SaveDirectory}/dla_cat.fits"
 
-    fdla = fitsio.FITS(fname, 'rw', clobber=True)
-    fdla.write(final_data, extname='DLACAT')
-    fdla.close()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fdla:
+        fdla.write(final_data, extname='DLACAT')
 
     print(f"DLA catalog saved as {fname}.")
