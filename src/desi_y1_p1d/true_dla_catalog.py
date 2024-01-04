@@ -26,7 +26,7 @@ def _getDLACat(ftruth):
 
     hdr_dla = f1['DLA_META'].read_header()
 
-    nrows = hdr_dla['NAXIS']
+    nrows = hdr_dla['NAXIS2']
     if nrows == 0:
         f1.close()
         return None

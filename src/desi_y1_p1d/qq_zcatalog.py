@@ -1,4 +1,5 @@
 import argparse
+import functools
 import glob
 from multiprocessing import Pool
 
@@ -63,14 +64,14 @@ def one_truth_catalog(ftruth):
 
     if 'DLA_META' in fts:
         hdr_dla = fts['DLA_META'].read_header()
-        nrows = hdr_dla['NAXIS']
+        nrows = hdr_dla['NAXIS2']
         if nrows != 0:
             dla_out = fts['DLA_META'].read()
             dla_out = rename_fields(dla_out, {'Z_DLA': 'Z'})
 
     if 'BAL_META' in fts:
         hdr_bal = fts['BAL_META'].read_header()
-        nrows = hdr_bal['NAXIS']
+        nrows = hdr_bal['NAXIS2']
         if nrows != 0:
             bal_out = fts['BAL_META'].read()
             bal_out = rename_fields(bal_out, {'Z_DLA': 'Z'})
@@ -80,12 +81,52 @@ def one_truth_catalog(ftruth):
     return dla_out, bal_out
 
 
+def stack_and_resize(arr1, arr2):
+    two_dim_dtype = [f for f in arr1.dtype.names if arr1[f].ndim == 2]
+    all_same = all((arr1.dtype[f].shape[0] == arr2.dtype[f].shape[0] for f in two_dim_dtype))
+    if all_same:
+        return np.concatenate((arr1, arr2))
+
+    # Create a new dtype with common field names and the maximum shape
+    one_dim_dtype = [f for f in arr1.dtype.names if arr1[f].ndim == 1]
+    new_dtype = [(f, arr1[f].dtype) for f in one_dim_dtype]
+
+    for field in two_dim_dtype:
+        new_shape = max(arr1.dtype[field].shape[0], arr2.dtype[field].shape[0])
+        new_dtype.append((field, arr1[field].dtype, new_shape))
+
+    new_dtype = np.dtype(new_dtype)
+    stacked_array = np.empty(arr1.size + arr2.size, dtype=new_dtype)
+
+    stacked_array[one_dim_dtype][:arr1.size] = arr1[one_dim_dtype]
+    stacked_array[one_dim_dtype][arr1.size:] = arr2[one_dim_dtype]
+
+    # Resize and fill with -1 for the first array
+    for field in two_dim_dtype:
+        n = new_dtype[field].shape[0] - arr1.dtype[field].shape[0]
+        stacked_array[field][:len(arr1)] = np.pad(
+            arr1[field], ((0, 0), (0, n)),
+            'constant', constant_values=-1)
+
+    # Resize and fill with -1 for the second array
+    for field in two_dim_dtype:
+        n = new_dtype[field].shape[0] - arr2.dtype[field].shape[0]
+        stacked_array[field][len(arr1):] = np.pad(
+            arr2[field], ((0, 0), (0, n)),
+            'constant', constant_values=-1)
+
+    return stacked_array
+
+
 def save_data(list_of_arr, fname, what, extname):
     if not list_of_arr:
         print(f"No {what} catalog")
         return None
 
-    final_data = np.concatenate(list_of_arr)
+    if what == "BAL":
+        final_data = functools.reduce(stack_and_resize, list_of_arr)
+    else:
+        final_data = np.concatenate(list_of_arr)
     print(f"There are {final_data.size} {what}s.")
 
     with fitsio.FITS(fname, 'rw', clobber=True) as fts:
