@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 from tqdm import tqdm
 
-from numpy.lib.recfunctions import rename_fields, merge_arrays
+from numpy.lib.recfunctions import rename_fields, join_by
 
 
 final_dtype = np.dtype([
@@ -177,7 +177,10 @@ def main(options=None):
         return
 
     print("Overwriting zcat.fits with appended BAL info.")
-    zcat_bal = merge_arrays((zcat, bal_cat), usemask=False)
+    fill_value = {key: -1 for key in bal_cat.dtype.names}
+    zcat_bal = join_by(
+        'TARGETID', zcat, bal_cat, jointype='outer',
+        usemask=False, defaults=fill_value)
     fname = f"{args.SaveDirectory}/zcat.fits"
     with fitsio.FITS(fname, 'rw', clobber=True) as fts:
         fts.write(zcat_bal, extname='ZCATALOG')
