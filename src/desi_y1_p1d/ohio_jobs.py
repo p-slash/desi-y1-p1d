@@ -197,10 +197,6 @@ class OhioQuickquasarsJob(Job):
 
         command = (f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}\n")
 
-        if self.dla:
-            command += (f"get-qq-true-dla-catalog {relpath_to_tr}/spectra-16 "
-                        f"{relpath_to_tr} --nproc {self.nthreads}\n")
-
         script_txt += utils.get_script_text_for_master_node(command)
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.desibase_dir, "quickquasars")
