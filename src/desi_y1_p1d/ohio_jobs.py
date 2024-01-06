@@ -698,29 +698,32 @@ class MockJobChain(JobChain):
         self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
 
-        self._set_systematics()
+        key = "nosyst"
 
-        self.qsonic_qmle_jobs = {}
-        for key, combo in self.dla_bal_combos.items():
-            settings.set("qsonic", "dla-mask", combo[0])
-            settings.set("qsonic", "bal-mask", combo[1])
+        if self.qq_job.dla:
+            settings.set("qsonic", "dla-mask", f"{self.qq_job.desibase_dir}/dla_cat.fits")
+            key = "dla"
 
-            qsonic_job = QSOnicMockJob(
-                delta_dir,
-                self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
-                realization, settings
-            )
+        if self.qq_job.bal > 0:
+            key += "-bal"
+            # settings.set("qsonic", "bal-mask", combo[1])
 
-            qmle_job = QmleJob(
+        qsonic_job = QSOnicMockJob(
+            delta_dir,
+            self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
+            realization, settings
+        )
+
+        qmle_job = QmleJob(
+            delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
+            jobname=f"qmle-{key}-{realization}")
+
+        self.qsonic_qmle_job = [qsonic_job, qmle_job]
+
+        if not self.sq_job and qmle_job.needs_sqjob():
+            self.sq_job = SQJob(
                 delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
-                jobname=f"qmle-{key}-{realization}")
-
-            self.qsonic_qmle_jobs[key] = [qsonic_job, qmle_job]
-
-            if not self.sq_job and qmle_job.needs_sqjob():
-                self.sq_job = SQJob(
-                    delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
-                    jobname="sq-job")
+                jobname="sq-job")
 
         self.setup()
 
@@ -728,10 +731,9 @@ class MockJobChain(JobChain):
         self.tr_job.setup()
         self.qq_job.setup()
 
-        for item in self.qsonic_qmle_jobs.values():
-            qsonic_job, qmle_job = item
-            qsonic_job.setup()
-            qmle_job.setup()
+        qsonic_job, qmle_job = self.qsonic_qmle_job
+        qsonic_job.setup()
+        qmle_job.setup()
 
         if self.sq_job:
             self.sq_job.setup()
@@ -744,25 +746,23 @@ class MockJobChain(JobChain):
         jobid = self.schedule_job(self.tr_job)
         jobid = self.schedule_job(self.qq_job, jobid)
 
-        for item in self.qsonic_qmle_jobs.values():
-            qsonic_job, qmle_job = item
-            jobid = self.schedule_job(qsonic_job, jobid)
-            _ = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
+        qsonic_job, qmle_job = self.qsonic_qmle_job
+        jobid = self.schedule_job(qsonic_job, jobid)
+        _ = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
 
     def inc_realization(self):
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
 
-        for joblist in self.qsonic_qmle_jobs.values():
-            qsonic_job, qmle_job = joblist
-            qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
+        qsonic_job, qmle_job = self.qsonic_qmle_job
+        qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
 
-            qmlejobname = qmle_job.jobname.split('-')
-            qmlejobname[-1] = str(qsonic_job.realization)
-            qmlejobname = '-'.join(qmlejobname)
-            joblist[1] = QmleJob(
-                self.qq_job.rootdir, qsonic_job.outdelta_dir,
-                self.qq_job.sysopt, self.settings, jobname=qmlejobname)
+        qmlejobname = qmle_job.jobname.split('-')
+        qmlejobname[-1] = str(qsonic_job.realization)
+        qmlejobname = '-'.join(qmlejobname)
+        self.qsonic_qmle_job[1] = QmleJob(
+            self.qq_job.rootdir, qsonic_job.outdelta_dir,
+            self.qq_job.sysopt, self.settings, jobname=qmlejobname)
 
 
 class DataJobChain(JobChain):
