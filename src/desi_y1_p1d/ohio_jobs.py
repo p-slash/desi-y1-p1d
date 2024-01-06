@@ -679,12 +679,6 @@ class JobChain():
 
 
 class MockJobChain(JobChain):
-    def _set_systematics(self):
-        # First is for DLA, second for BAL
-        self.dla_bal_combos = {"nosyst": ("", "False")}
-        if self.qq_job.dla:
-            self.dla_bal_combos["dla"] = (f"{self.qq_job.desibase_dir}/dla_cat.fits", "False")
-
     def __init__(
             self, rootdir, realization, delta_dir, settings
     ):
@@ -698,15 +692,18 @@ class MockJobChain(JobChain):
         self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
 
-        key = "nosyst"
+        key = ""
 
         if self.qq_job.dla:
             settings.set("qsonic", "dla-mask", f"{self.qq_job.desibase_dir}/dla_cat.fits")
-            key = "dla"
+            key += "-dla"
 
         if self.qq_job.bal > 0:
             key += "-bal"
             # settings.set("qsonic", "bal-mask", combo[1])
+
+        if not key:
+            key = "-nosyst"
 
         qsonic_job = QSOnicMockJob(
             delta_dir,
@@ -716,7 +713,7 @@ class MockJobChain(JobChain):
 
         qmle_job = QmleJob(
             delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
-            jobname=f"qmle-{key}-{realization}")
+            jobname=f"qmle{key}-{realization}")
 
         self.qsonic_qmle_job = [qsonic_job, qmle_job]
 
