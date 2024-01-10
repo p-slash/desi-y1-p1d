@@ -3,7 +3,7 @@ from pkg_resources import resource_filename
 
 
 class OhioMockSettings():
-    all_settings = ["y1_iron_v0_nosyst"]
+    all_settings = ["y1_iron_v0_nosyst", "y1_iron_v2_allsyst"]
 
     @staticmethod
     def list_available_settings():
