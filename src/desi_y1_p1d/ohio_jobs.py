@@ -622,7 +622,7 @@ class SQJob(LyspeqJob):
     def create_script(self, dep_jobid=None):
         # self.create_config()
 
-        time_txt = timedelta(minutes=5.)
+        time_txt = timedelta(minutes=15.)
 
         script_txt = utils.get_script_header(
             self.qmle_settings['LookUpTableDir'], self.jobname,
