@@ -103,7 +103,7 @@ def submit_script(
         jobid = int(str(processstdout).split(' ')[-1].strip())
 
         # limit slurm pings
-        time.sleep(10)
+        time.sleep(1)
 
     print(f"JobID: {jobid}")
     return jobid
