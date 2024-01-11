@@ -63,14 +63,12 @@ def one_truth_catalog(ftruth):
     bal_out = None
 
     if 'DLA_META' in fts:
-        hdr_dla = fts['DLA_META'].read_header()
-        if hdr_dla.has_data():
+        if fts['DLA_META'].has_data():
             dla_out = fts['DLA_META'].read()
             dla_out = rename_fields(dla_out, {'Z_DLA': 'Z'})
 
     if 'BAL_META' in fts:
-        hdr_bal = fts['BAL_META'].read_header()
-        if hdr_bal.has_data():
+        if fts['BAL_META'].has_data():
             bal_out = fts['BAL_META'].read()
 
     fts.close()
