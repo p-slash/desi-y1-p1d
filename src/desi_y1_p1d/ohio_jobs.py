@@ -156,44 +156,45 @@ class OhioQuickquasarsJob(Job):
         relpath_to_tr = os.path.relpath(self.desibase_dir, self.transmissions_dir)
 
         command = (f"srun -N 1 -n 1 -c {self.nthreads} "
-                   f"quickquasars -i \\$tfiles --nproc {self.nthreads} "
+                   f"quickquasars -i $tfiles --nproc {self.nthreads} "
                    f"--outdir {relpath_to_tr}/spectra-16 {self.OPTS_QQ}")
 
-        script_txt += f'{self.env_command}\n\n'
-        script_txt += '# Change directory...\n'
-        script_txt += f'cd {self.transmissions_dir}\n'
-        script_txt += 'echo "get list of skewers to run ..."\n\n'
+        script_txt += (
+            f'{self.env_command}\n\n'
+            '# Change directory...\n'
+            f'cd {self.transmissions_dir}\n'
+            'echo "get list of skewers to run ..."\n\n'
 
-        script_txt += "files=\\`ls -1 ./*/*/lya-transmission*.fits*\\`\n"
-        script_txt += "nfiles=\\`echo \\$files | wc -w\\`\n"
-        script_txt += f"nfilespernode=\\$(( \\$nfiles/{self.nodes} + 1))\n\n"
+            "files=`ls -1 ./*/*/lya-transmission*.fits*`\n"
+            "nfiles=`echo $files | wc -w`\n"
+            f"nfilespernode=$(( $nfiles/{self.nodes} + 1))\n\n"
 
-        script_txt += 'echo "n files =" \\$nfiles\n'
-        script_txt += 'echo "n files per node =" \\$nfilespernode\n\n'
+            'echo "n files =" $nfiles\n'
+            'echo "n files per node =" $nfilespernode\n\n'
 
-        script_txt += "first=1\n"
-        script_txt += "last=\\$nfilespernode\n"
-        script_txt += f"for node in \\`seq {self.nodes}\\` ; do\n"
-        script_txt += "    echo 'starting node \\$node'\n\n"
+            "first=1\n"
+            "last=$nfilespernode\n"
+            f"for node in `seq {self.nodes}` ; do\n"
+            "    echo 'starting node $node'\n\n"
 
-        script_txt += "    # list of files to run\n"
-        script_txt += f"    if (( \\$node == {self.nodes} )) ; then\n"
-        script_txt += "        last=""\n"
-        script_txt += "    fi\n"
-        script_txt += "    echo \\${first}-\\${last}\n"
-        script_txt += '    tfiles=\\`echo \\$files | cut -d " " -f \\${first}-\\${last}\\`\n'
-        script_txt += "    first=\\$(( \\$first + \\$nfilespernode ))\n"
-        script_txt += "    last=\\$(( \\$last + \\$nfilespernode ))\n"
-        script_txt += f'    command="{command}"\n\n'
+            "    # list of files to run\n"
+            f"    if (( $node == {self.nodes} )) ; then\n"
+            "        last=""\n"
+            "    fi\n"
+            "    echo ${first}-${last}\n"
+            '    tfiles=`echo $files | cut -d " " -f ${first}-${last}`\n'
+            "    first=$(( $first + $nfilespernode ))\n"
+            "    last=$(( $last + $nfilespernode ))\n"
+            f'    command="{command}"\n\n'
 
-        script_txt += "    echo \\$command\n"
-        script_txt += f'    echo "log in {relpath_to_tr}/logs/node-\\$node.log"\n\n'
+            "    echo $command\n"
+            f'    echo "log in {relpath_to_tr}/logs/node-$node.log"\n\n'
 
-        script_txt += f"    \\$command >& {relpath_to_tr}/logs/node-\\$node.log &\n"
-        script_txt += "done\n\n"
+            f"    $command >& {relpath_to_tr}/logs/node-$node.log &\n"
+            "done\n\n"
 
-        script_txt += "wait\n"
-        script_txt += "echo 'END'\n\n"
+            "wait\n"
+            "echo 'END'\n\n")
 
         command = (f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}\n")
 
