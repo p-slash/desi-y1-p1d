@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 from tqdm import tqdm
 
-from numpy.lib.recfunctions import rename_fields, join_by
+from numpy.lib.recfunctions import rename_fields, join_by, drop_fields
 
 
 final_dtype = np.dtype([
@@ -161,8 +161,12 @@ def main(options=None):
             if bal_out is not None:
                 balcat_list.append(bal_out)
 
-    zcat = save_data(
-        zcat_list, f"{args.SaveDirectory}/zcat.fits", "quasar", "ZCATALOG")
+    if balcat_list:
+        zcat_fname = f"{args.SaveDirectory}/zcat_only.fits"
+    else:
+        zcat_fname = f"{args.SaveDirectory}/zcat.fits"
+
+    zcat = save_data(zcat_list, zcat_fname, "quasar", "ZCATALOG")
     _ = save_data(
         dlacat_list, f"{args.SaveDirectory}/dla_cat.fits", "DLA", "DLACAT")
     bal_cat = save_data(
@@ -171,11 +175,11 @@ def main(options=None):
     if bal_cat is None:
         return
 
-    print("Overwriting zcat.fits with appended BAL info.")
+    print("Creating zcat.fits with appended BAL info.")
     fill_value = {key: -1 for key in bal_cat.dtype.names}
     zcat_bal = join_by(
-        'TARGETID', zcat, bal_cat, jointype='outer',
-        usemask=False, defaults=fill_value)
+        'TARGETID', zcat, drop_fields(bal_cat, 'Z', usemask=False),
+        jointype='outer', usemask=False, defaults=fill_value)
     fname = f"{args.SaveDirectory}/zcat.fits"
     with fitsio.FITS(fname, 'rw', clobber=True) as fts:
         fts.write(zcat_bal, extname='ZCATALOG')
