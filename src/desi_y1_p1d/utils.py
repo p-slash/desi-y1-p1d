@@ -60,9 +60,9 @@ def get_script_header(outdir, jobname, time_txt, nodes, queue="regular"):
 
 
 def get_script_text_for_master_node(command):
-    script_txt = "if [ \\$SLURM_NODEID -eq 0 ]; then\n"
-    script_txt += f"    {command}"
-    script_txt += "fi\n"
+    script_txt = ("if [ $SLURM_NODEID -eq 0 ]; then\n"
+                  f"    {command}\n"
+                  "fi\n")
 
     return script_txt
 

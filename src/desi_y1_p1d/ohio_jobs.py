@@ -196,9 +196,8 @@ class OhioQuickquasarsJob(Job):
             "wait\n"
             "echo 'END'\n\n")
 
-        command = (f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}\n")
-
-        script_txt += utils.get_script_text_for_master_node(command)
+        script_txt += utils.get_script_text_for_master_node(
+            f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}")
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.desibase_dir, "quickquasars")
 
