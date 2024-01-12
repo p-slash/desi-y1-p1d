@@ -446,19 +446,22 @@ class LyspeqJob(Job):
         super().__init__(settings, section)
         sb_suff = "-sb" if "SB" in section else ""
         self.jobname = jobname
-        self.rootdir = rootdir
-        self.qmle_settings = dict(settings[section])
-        self.qmle_settings['FileInputDir'] = outdelta_dir
         # Filenames should relative to outdelta_dir
-        self.qmle_settings['FileNameList'] = f"{outdelta_dir}/fname_list.txt"
-        self.qmle_settings['OutputDir'] = os.path.abspath(f"{outdelta_dir}/results/")
-        self.qmle_settings['LookUpTableDir'] = f"{rootdir}/lookuptables{sb_suff}"
-        self.qmle_settings['FileNameRList'] = f"{rootdir}/specres_list-rmat.txt"
+        self.working_dir = os.path.abspath(outdelta_dir)
+        self.qmle_settings = dict(settings[section])
+        self.qmle_settings['FileInputDir'] = "."
+        self.qmle_settings['FileNameList'] = "fname_list.txt"
+        self.qmle_settings['OutputDir'] = "results"
+        self.qmle_settings['LookUpTableDir'] = os.path.abspath(
+            f"{rootdir}/lookuptables{sb_suff}")
+        self.qmle_settings['FileNameRList'] = os.path.abspath(
+            f"{rootdir}/specres_list-rmat.txt")
         self.qmle_settings['OutputFileBase'] = self._get_output_fbase(settings, sysopt)
 
-        self.config_file = os.path.abspath(os.path.join(
-            self.qmle_settings['OutputDir'], "..",
-            f"config-qmle-{self.qmle_settings['OutputFileBase']}.txt"))
+        self.config_file = f"config-qmle-{self.qmle_settings['OutputFileBase']}.txt"
+
+        self.abspath_configfile = f"{self.working_dir}/{self.config_file}"
+        self.abspath_outputdir = f"{self.working_dir}/{self.qmle_settings['OutputDir']}"
 
     def _get_output_fbase(self, settings, sysopt):
         if "ohio" in settings.sections():
@@ -485,17 +488,11 @@ class LyspeqJob(Job):
         if not create_dir:
             return
 
-        # make directories to store outputs and lookup tables
-        # print("Creating directories:")
-        # print(f"+ {self.qmle_settings['OutputDir']}")
-        # print(f"+ {self.qmle_settings['LookUpTableDir']}")
-
-        makedirs(self.qmle_settings['OutputDir'], exist_ok=True)
+        makedirs(self.abspath_outputdir, exist_ok=True)
         makedirs(self.qmle_settings['LookUpTableDir'], exist_ok=True)
 
-        frname = self.qmle_settings['FileNameRList']
-        if not os.path.exists(frname):
-            with open(frname, 'w') as frfile:
+        if not os.path.exists(self.qmle_settings['FileNameRList']):
+            with open(self.qmle_settings['FileNameRList'], 'w') as frfile:
                 frfile.write("1\n")
                 frfile.write("1000000 0.1\n")
 
@@ -512,10 +509,10 @@ class LyspeqJob(Job):
             if key not in omitted_keys
         ]
         config_txt = ''.join(config_lines)
-        with open(self.config_file, 'w') as f:
+        with open(self.abspath_configfile, 'w') as f:
             f.write(config_txt)
 
-        print(f"LyspeqJob config is saved as {self.config_file}.")
+        print(f"LyspeqJob config is saved as {self.abspath_configfile}.")
 
 
 class QmleJob(LyspeqJob):
@@ -559,13 +556,12 @@ class QmleJob(LyspeqJob):
 
         time_txt = timedelta(minutes=self.time)
 
-        oneup_dir = os.path.abspath(f"{self.qmle_settings['OutputDir']}/../")
-
         script_txt = utils.get_script_header(
-            self.qmle_settings['OutputDir'], self.jobname,
+            self.abspath_outputdir, self.jobname,
             time_txt, self.nodes, self.queue)
         cpus_pt = 256 // (self.nthreads // self.nodes)
 
+        script_txt += f"cd {self.working_dir}\n\n"
         script_txt += self.get_filelist_script_txt()
         script_txt += f"{self.qmle_settings['env_command']}\n\n"
         script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
@@ -581,12 +577,7 @@ class QmleJob(LyspeqJob):
 
         script_txt += " \\\n&& ".join(commands) + '\n'
         self.submitter_fname = utils.save_submit_script(
-            script_txt, oneup_dir, self.jobname)
-
-        # self.submitter_fname = utils.save_submitter_script(
-        #     script_txt, oneup_dir, self.jobname,
-        #     env_command=self.qmle_settings['env_command'],
-        #     dep_jobid=dep_jobid)
+            script_txt, self.working_dir, self.jobname)
 
         print(f"QmleJob script is saved as {self.submitter_fname}.")
 
@@ -605,15 +596,16 @@ class QmleJob(LyspeqJob):
         return not files_exits
 
     def get_filelist_script_txt(self):
-        if os.path.exists(self.qmle_settings['FileNameList']):
-            return ""
-
-        script_txt = " \\\n&& ".join([
-            f"cd {self.qmle_settings['FileInputDir']}",
+        script_txt = " && ".join([
             "getLists4QMLEfromPICCA . --nproc 128",
             "getLists4QMLEfromPICCA . --nproc 128 --snr-cut 1",
             "getLists4QMLEfromPICCA . --nproc 128 --snr-cut 2"
-        ]) + f'\n\ncd {self.rootdir}\n\n'
+        ])  # + f'\n\ncd {self.working_dir}\n\n'
+
+        script_txt = (
+            'if [[ ! -f "' + self.qmle_settings['FileNameList'] + '" ]]; then\n'
+            f"    {script_txt}\n"
+            "fi\n\n")
 
         return script_txt
 
@@ -629,7 +621,7 @@ class SQJob(LyspeqJob):
             time_txt, 1, self.queue)
 
         script_txt += f"{self.qmle_settings['env_command']}\n"
-        script_txt += f"srun -N 1 -n 1 -c 2 CreateSQLookUpTable {self.config_file}\n"
+        script_txt += f"srun -N 1 -n 1 -c 2 CreateSQLookUpTable {self.abspath_configfile}\n"
 
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.qmle_settings['LookUpTableDir'], self.jobname)
