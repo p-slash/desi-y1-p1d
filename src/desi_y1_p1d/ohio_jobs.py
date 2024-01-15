@@ -279,7 +279,7 @@ class QSOnicJob(Job):
         self.forest_w1 = qsonic_settings['forest_w1']
         self.forest_w2 = qsonic_settings['forest_w2']
         self.cont_order = qsonic_settings['cont_order']
-        self.use_truecont = qsonic_settings.getboolean('true-continuum', fallback=False)
+        self.use_truecont = qsonic_settings.getboolean('true_continuum', fallback=False)
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
         self.fiducial_meanflux = qsonic_settings.get('fiducial_meanflux', fallback=None)
         self.fiducial_varlss = qsonic_settings.get('fiducial_varlss', fallback=None)
@@ -720,8 +720,6 @@ class MockJobChain(JobChain):
                 delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
                 jobname="sq-job")
 
-        self.setup()
-
     def setup(self):
         self.tr_job.setup()
         self.qq_job.setup()
@@ -734,6 +732,8 @@ class MockJobChain(JobChain):
             self.sq_job.setup()
 
     def schedule(self):
+        self.setup()
+
         if self.sq_job:
             self.sq_jobid = self.schedule_job(self.sq_job)
             self.sq_job = None
@@ -761,7 +761,6 @@ class MockJobChain(JobChain):
         self.qsonic_qmle_job[1] = QmleJob(
             self.qq_job.rootdir, qsonic_job.outdelta_dir,
             self.qq_job.sysopt, self.settings, jobname=qmlejobname)
-        self.setup()
 
 
 class DataJobChain(JobChain):
@@ -809,8 +808,6 @@ class DataJobChain(JobChain):
                 sysopt=None, settings=settings, section=f"qmle.{cf}",
                 jobname=f"qmle-{forest}")
 
-        self.setup()
-
     def setup(self):
         for job in self.qsonic_jobs.values():
             job.setup()
@@ -822,6 +819,8 @@ class DataJobChain(JobChain):
     def schedule(self, keys_to_run=[], no_calib_run=True):
         sq_jobids = {}
         last_qsonic_jobid = None
+
+        self.setup()
 
         # Make sure LyaCalib runs last
         forests = list(self.qsonic_jobs.keys())
@@ -893,9 +892,6 @@ class DataSplitJobChain(JobChain):
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
 
-        # Calibration passed explicitly
-        self.setup()
-
     def setup(self):
         for job in self.qsonic_jobs.values():
             job.setup()
@@ -907,6 +903,7 @@ class DataSplitJobChain(JobChain):
     def schedule(self, keys_to_run=[], i1=0):
         sq_jobids = {}
         last_qsonic_jobid = None
+        self.setup()
 
         keys = list(self.qsonic_jobs.keys())
 
