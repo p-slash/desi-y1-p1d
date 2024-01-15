@@ -279,6 +279,7 @@ class QSOnicJob(Job):
         self.forest_w1 = qsonic_settings['forest_w1']
         self.forest_w2 = qsonic_settings['forest_w2']
         self.cont_order = qsonic_settings['cont_order']
+        self.use_truecont = qsonic_settings.getboolean('true-continuum', fallback=False)
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
         self.fiducial_meanflux = qsonic_settings.get('fiducial_meanflux', fallback=None)
         self.fiducial_varlss = qsonic_settings.get('fiducial_varlss', fallback=None)
@@ -291,7 +292,10 @@ class QSOnicJob(Job):
         self.tile_format = False
         self.calibfile = qsonic_settings.get("calibration", fallback=None)
 
-        self.suffix = f"-co{self.cont_order}"
+        if self.use_truecont:
+            self.suffix = "-tc"
+        else:
+            self.suffix = f"-co{self.cont_order}"
         if self.dla or self.bal or self.sky:
             self.suffix += "-m"
         if self.dla:
@@ -350,6 +354,8 @@ class QSOnicJob(Job):
 
         if self.is_mock:
             qsonic_command += " \\\n--mock-analysis"
+            if self.use_truecont:
+                qsonic_command += " \\\n--true-continuum"
         if self.tile_format:
             qsonic_command += " \\\n--tile-format"
         if self.dla:
@@ -739,7 +745,10 @@ class MockJobChain(JobChain):
         jobid = self.schedule_job(qsonic_job, jobid)
         _ = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
 
-    def inc_realization(self):
+    def inc_realization(self, is_last):
+        if is_last:
+            return
+
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
 
@@ -752,6 +761,7 @@ class MockJobChain(JobChain):
         self.qsonic_qmle_job[1] = QmleJob(
             self.qq_job.rootdir, qsonic_job.outdelta_dir,
             self.qq_job.sysopt, self.settings, jobname=qmlejobname)
+        self.setup()
 
 
 class DataJobChain(JobChain):

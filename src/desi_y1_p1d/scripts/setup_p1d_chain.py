@@ -46,7 +46,7 @@ def get_parser():
 
     qq_group.add_argument("--nexp", type=int, help="Number of exposures.")
     qq_group.add_argument(
-        "--dla", choices=["random", "file"], help="Add DLAs. 'file' adds clustered DLAs.")
+        "--dla", choices=["random", "file", ""], help="Add DLAs. 'file' adds clustered DLAs.")
     qq_group.add_argument(
         "--bal", type=float,
         help="Add BAL features with the specified probability. typical: 0.16")
@@ -76,6 +76,8 @@ def get_parser():
         help="Run on debug queue.")
     run_group.add_argument("--batch", action="store_true", help="Submit the job.")
 
+    qsonic_group.add_argument(
+        "--true-continuum", action="store_true", help="True continuum.")
     qsonic_group.add_argument(
         "--wave1", type=float,
         help="First observed wavelength edge.")
@@ -142,7 +144,7 @@ def main(options=None):
 
         job_chain.schedule()
 
-        job_chain.inc_realization()
+        job_chain.inc_realization(jj == args.nrealizations - 1)
 
         print(f"MockJobChain done for realization {jj+args.rn1}.")
         print("==================================================")
