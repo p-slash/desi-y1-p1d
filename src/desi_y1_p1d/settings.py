@@ -35,7 +35,7 @@ class OhioMockSettings():
 class DesiDataSettings():
     all_settings = [
         "y1_iron_v1_allsyst", "y1_iron_v1p_allsyst", "y1_iron_cmb",
-        "tile_y1_v1_allsyst"]
+        "tile_y1_v1_allsyst", "tile_y1_v1_allsyst_calib", "tile_y1_cmb_calib"]
 
     @staticmethod
     def list_available_settings():
