@@ -97,7 +97,7 @@ class OhioQuickquasarsJob(Job):
                    f" --save-continuum-dwave {self.cont_dwave}")
 
         if self.dla:
-            sysopt += "1"
+            sysopt += f"{self.dla[0]}1"
             OPTS_QQ += f" --dla {self.dla}"
 
         # if self.metals:
