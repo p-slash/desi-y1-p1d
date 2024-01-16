@@ -686,6 +686,7 @@ class MockJobChain(JobChain):
         self.sq_jobid = -1
         self.dla_bal_combos = None
         self.settings = settings
+        self.delta_dir = delta_dir
 
         self.tr_job = OhioTransmissionsJob(rootdir, realization, settings)
         self.qq_job = OhioQuickquasarsJob(rootdir, realization, settings)
@@ -693,7 +694,8 @@ class MockJobChain(JobChain):
         key = ""
 
         if self.qq_job.dla:
-            settings.set("qsonic", "dla-mask", f"{self.qq_job.desibase_dir}/dla_cat.fits")
+            self.settings.set(
+                "qsonic", "dla-mask", f"{self.qq_job.desibase_dir}/dla_cat.fits")
             key += "-dla"
 
         if self.qq_job.bal > 0:
@@ -704,21 +706,21 @@ class MockJobChain(JobChain):
             key = "-nosyst"
 
         qsonic_job = QSOnicMockJob(
-            delta_dir,
-            self.qq_job.interm_path, self.qq_job.desibase_dir, self.qq_job.foldername,
-            realization, settings
+            self.delta_dir,
+            self.qq_job.interm_path, self.qq_job.desibase_dir,
+            self.qq_job.foldername, realization, self.settings
         )
 
         qmle_job = QmleJob(
-            delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
-            jobname=f"qmle{key}-{realization}")
+            self.delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt,
+            self.settings, jobname=f"qmle{key}-{realization}")
 
         self.qsonic_qmle_job = [qsonic_job, qmle_job]
 
         if not self.sq_job and qmle_job.needs_sqjob():
             self.sq_job = SQJob(
-                delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt, settings,
-                jobname="sq-job")
+                self.delta_dir, qsonic_job.outdelta_dir, self.qq_job.sysopt,
+                self.settings, jobname="sq-job")
 
     def setup(self):
         self.tr_job.setup()
@@ -751,6 +753,9 @@ class MockJobChain(JobChain):
 
         self.tr_job.inc_realization()
         self.qq_job.inc_realization()
+        if self.qq_job.dla:
+            self.settings.set(
+                "qsonic", "dla-mask", f"{self.qq_job.desibase_dir}/dla_cat.fits")
 
         qsonic_job, qmle_job = self.qsonic_qmle_job
         qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
@@ -759,7 +764,7 @@ class MockJobChain(JobChain):
         qmlejobname[-1] = str(qsonic_job.realization)
         qmlejobname = '-'.join(qmlejobname)
         self.qsonic_qmle_job[1] = QmleJob(
-            self.qq_job.rootdir, qsonic_job.outdelta_dir,
+            self.delta_dir, qsonic_job.outdelta_dir,
             self.qq_job.sysopt, self.settings, jobname=qmlejobname)
 
 
