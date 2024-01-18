@@ -267,12 +267,19 @@ class OhioTransmissionsJob(Job):
 
 
 class QSOnicJob(Job):
-    def __init__(self, rootdir, foldername, is_mock, settings, section):
+    def __init__(
+            self, rootdir, foldername, is_mock, settings, section, jobname=""
+    ):
         super().__init__(settings, section)
         qsonic_settings = settings[section]
         self.rootdir = rootdir
         self.foldername = foldername
         self.is_mock = is_mock
+
+        if jobname:
+            self.jobname = jobname
+        else:
+            self.jobname = f"qsonic-{self.foldername}"
 
         self.wave1 = qsonic_settings['wave1']
         self.wave2 = qsonic_settings['wave2']
@@ -317,9 +324,6 @@ class QSOnicJob(Job):
             return None
 
         if create_dir:
-            # print("Creating directory:")
-            # print(f"+ {self.outdelta_dir}")
-
             makedirs(self.outdelta_dir, exist_ok=True)
 
         return self.outdelta_dir
@@ -336,7 +340,7 @@ class QSOnicJob(Job):
 
         time_txt = timedelta(minutes=self.time)
         script_txt = utils.get_script_header(
-            self.outdelta_dir, f"qsonic-{self.foldername}", time_txt, self.nodes, self.queue)
+            self.outdelta_dir, self.jobname, time_txt, self.nodes, self.queue)
 
         script_txt += f'{self.env_command}\n\n'
         commands = []
@@ -404,6 +408,7 @@ class QSOnicMockJob(QSOnicJob):
 
         self._set_paths()
         self.submitter_fname = None
+        self.jobname = f"qsonic-{self.realization}"
 
     def _set_paths(self):
         self.indir = f"{self.desibase_dir}/spectra-16"
@@ -420,6 +425,7 @@ class QSOnicMockJob(QSOnicJob):
 
     def inc_realization(self, new_interm_path, new_desibase_dir):
         self.realization += 1
+        self.jobname = f"qsonic-{self.realization}"
         self.interm_path = new_interm_path
         self.desibase_dir = new_desibase_dir
 
@@ -627,10 +633,22 @@ class QmleJob(LyspeqJob):
 
 
 class SQJob(LyspeqJob):
-    def create_script(self, dep_jobid=None):
-        # self.create_config()
+    def __init__(
+            self, rootdir, outdelta_dir, sysopt,
+            settings, section='qmle', jobname='sq-job'
+    ):
+        super().__init__(
+            rootdir, outdelta_dir, sysopt, settings, section, jobname)
 
+        self.config_file = "config-qmle-sq.txt"
+        self.qmle_settings['OutputDir'] = self.qmle_settings['LookUpTableDir']
+        self.abspath_outputdir = self.qmle_settings['LookUpTableDir']
+        self.abspath_configfile = (
+            f"{self.qmle_settings['OutputDir']}/{self.config_file}")
+
+    def create_script(self, dep_jobid=None):
         time_txt = timedelta(minutes=15.)
+        self.create_config()
 
         script_txt = utils.get_script_header(
             self.qmle_settings['LookUpTableDir'], self.jobname,
@@ -906,6 +924,7 @@ class DataSplitJobChain(JobChain):
                     delta_dir, self.qsonic_jobs[key].outdelta_dir,
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
+                self.sq_jobs[sq_key].setup()
 
     def setup(self):
         for job in self.qsonic_jobs.values():
