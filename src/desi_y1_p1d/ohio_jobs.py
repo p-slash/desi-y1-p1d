@@ -408,6 +408,10 @@ class QSOnicMockJob(QSOnicJob):
     def _set_paths(self):
         self.indir = f"{self.desibase_dir}/spectra-16"
         self.catalog = f"{self.desibase_dir}/zcat.fits"
+
+        if self.dla:
+            self.dla = f"{self.desibase_dir}/dla_cat.fits"
+
         if self.rootdir:
             self.outdelta_dir = os.path.join(
                 self.rootdir, self.interm_path, self.foldername, f"Delta{self.suffix}")
