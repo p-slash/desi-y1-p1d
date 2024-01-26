@@ -595,8 +595,9 @@ class QmleJob(LyspeqJob):
 
         # remove error_logs
         script_txt += utils.get_script_text_for_master_node(
-            "cat results/error_log*.txt > results/error_logs_all.txt && "
-            "rm results/error_log*.txt")
+            "if [ $(ls -1 results/error_log*.txt 2>/dev/null | wc -l) -gt 0 ]; "
+            "then cat results/error_log*.txt > results/error_logs_all.txt && "
+            "rm results/error_log*.txt; fi")
 
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.working_dir, self.jobname)
