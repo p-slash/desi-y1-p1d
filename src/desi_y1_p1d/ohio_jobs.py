@@ -533,39 +533,26 @@ class LyspeqJob(Job):
 
 class QmleJob(LyspeqJob):
     def get_bootstrap_commands(self):
-        save_boots = int(self.qmle_settings['SaveEachProcessResult']) > 0
+        save_boots = int(self.qmle_settings['NumberOfBoots']) > 0
         if not save_boots:
             return []
 
-        nboots = int(self.qmle_settings["number_of_bootstraps"])
-        boot_seed = self.qmle_settings["boot_seed"]
-        if nboots <= 0:
-            return []
-
-        inbootfile = os.path.join(
+        bootcovfile = os.path.join(
             self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}-bootresults.dat")
-
-        commands = []
-        commands.append(
-            f"bootstrapQMLE {inbootfile} --bootnum {nboots} "
-            f"--fbase {self.qmle_settings['OutputFileBase']} "
-            f"--seed {boot_seed}")
-
-        outcovfile = os.path.join(
-            self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}-bootstrap-cov-n{nboots}-s{boot_seed}.txt")
+            f"{self.qmle_settings['OutputFileBase']}_bootstrap_mean_covariance.txt")
         infisherfile = os.path.join(
             self.qmle_settings['OutputDir'],
             f"{self.qmle_settings['OutputFileBase']}_it1_fisher_matrix.txt")
+        incovfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{self.qmle_settings['OutputFileBase']}_it1_inversefisher_matrix.txt")
 
-        commands.append(
-            f"regularizeBootstrapCov --boot-cov {outcovfile} "
+        return [
+            f"regularizeBootstrapCov --boot-cov {bootcovfile} "
             f"--qmle-fisher {infisherfile} "
-            f"--qmle-sparcity-cut 0.001 --reg-in-cov "
-            f"--fbase {self.qmle_settings['OutputFileBase']}-")
-
-        return commands
+            f"--qmle-cov {incovfile} "
+            f"--qmle-sparcity-cut 0 --reg-in-cov "
+            f"--fbase {self.qmle_settings['OutputFileBase']}_"]
 
     def create_script(self):
         self.create_config()
@@ -589,7 +576,7 @@ class QmleJob(LyspeqJob):
         commands.append(
             f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
             f"LyaPowerEstimate {self.config_file}")
-        # commands.extend(self.get_bootstrap_commands())
+        commands.extend(self.get_bootstrap_commands())
 
         script_txt += " \\\n&& ".join(commands) + '\n'
 
