@@ -13,6 +13,10 @@ def becker13_mf(z):
     return fid.evaluateBecker13MeanFlux(z, *fid.BECKER13_parameters)
 
 
+def turner24_mf(z):
+    return np.exp(-2.46e-3 * (1 + z)**3.62)
+
+
 def readTrueP1D(fname):
     print("I am reading true power.", flush=True)
     file = open(fname, 'rb')
@@ -113,7 +117,7 @@ def main():
         '--delta-lambda', type=float, default=0.8, required=False,
         help='Size of the rebined pixels in lambda')
     parser.add_argument(
-        "--meanflux", choices=['mock', 'becker13'], default='mock',
+        "--meanflux", choices=['mock', 'becker13', 'turner24'], default='mock',
         help='Mean flux to use.')
     args = parser.parse_args()
 
@@ -125,6 +129,8 @@ def main():
         meanflux_fn = TRUE_MEAN_FLUX
     elif args.meanflux == 'becker13':
         meanflux_fn = becker13_mf
+    elif args.meanflux == 'turner24':
+        meanflux_fn = turner24_mf
     else:
         raise Exception("Unknown mean flux option")
 
