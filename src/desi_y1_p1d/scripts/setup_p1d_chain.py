@@ -77,8 +77,6 @@ def get_parser():
     run_group.add_argument("--batch", action="store_true", help="Submit the job.")
 
     qsonic_group.add_argument(
-        "--true-continuum", action="store_true", help="True continuum.")
-    qsonic_group.add_argument(
         "--wave1", type=float,
         help="First observed wavelength edge.")
     qsonic_group.add_argument(
