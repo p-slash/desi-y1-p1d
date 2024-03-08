@@ -496,6 +496,7 @@ class LyspeqJob(Job):
 
         oversample = int(self.qmle_settings.get('OversampleRmat', 0))
         deconvolve = float(self.qmle_settings.get('ResoMatDeconvolutionM', 0))
+        marg = int(self.qmle_settings.get('ContinuumLogLambdaMargOrder', -1))
         nchunks = int(self.qmle_settings.get('DynamicChunkNumber', 0))
 
         if oversample > 0:
@@ -504,6 +505,8 @@ class LyspeqJob(Job):
             fbase += f"-dc{deconvolve:.2f}"
         if nchunks > 0:
             fbase += f"-n{nchunks}"
+        if marg > -1:
+            fbase += f"-cm{marg}"
 
         return fbase
 

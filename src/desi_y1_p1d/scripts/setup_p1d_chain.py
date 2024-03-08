@@ -101,6 +101,9 @@ def get_parser():
     qmle_group.add_argument(
         "--skip-qmles", action="store_true",
         help="Skip QMLE. Makes sense if you only want to fit the continuum.")
+    qmle_group.add_argument(
+        "--ContinuumLogLambdaMargOrder", type=int,
+        help="QMLE continuum marginalization order.")
 
     return parser
 
