@@ -90,7 +90,7 @@ def get_parser():
         help="Last forest wavelength edge.")
     qsonic_group.add_argument(
         "--cont-order", type=int,
-        help="Order of continuum fitting polynomial.")
+        help="Order of continuum fitting polynomial. Pass <0 for to true continuum.")
     qsonic_group.add_argument(
         "--suffix-qsonic",
         help="suffix for QSOnic reduction if custom parameters are passed.")

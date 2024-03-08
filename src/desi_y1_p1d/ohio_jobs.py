@@ -285,8 +285,8 @@ class QSOnicJob(Job):
         self.wave2 = qsonic_settings['wave2']
         self.forest_w1 = qsonic_settings['forest_w1']
         self.forest_w2 = qsonic_settings['forest_w2']
-        self.cont_order = qsonic_settings['cont_order']
-        self.use_truecont = qsonic_settings.getboolean('true_continuum', fallback=False)
+        self.cont_order = qsonic_settings.getint('cont_order')
+        self.use_truecont = self.cont_order < 0
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
         self.fiducial_meanflux = qsonic_settings.get('fiducial_meanflux', fallback=None)
         self.fiducial_varlss = qsonic_settings.get('fiducial_varlss', fallback=None)
@@ -298,6 +298,13 @@ class QSOnicJob(Job):
         self.env_command = qsonic_settings['env_command']
         self.tile_format = False
         self.calibfile = qsonic_settings.get("calibration", fallback=None)
+
+        if self.use_truecont:
+            assert self.fiducial_varlss
+            assert self.fiducial_meanflux
+        elif self.fiducial_varlss:
+            print("Ignore fiducial_varlss. Keep fiducial_meanflux.")
+            self.fiducial_varlss = ""
 
         if self.use_truecont:
             self.suffix = "-tc"
