@@ -788,7 +788,7 @@ class MockJobChain(JobChain):
         qsonic_job, qmle_job = self.qsonic_qmle_job
         qsonic_job.inc_realization(self.qq_job.interm_path, self.qq_job.desibase_dir)
 
-        qmlejobname = qmle_job.jobname.split('-')
+        qmlejobname = qmle_job.jobname.split('-')[:2]
         qmlejobname[-1] = str(qsonic_job.realization)
         qmlejobname = '-'.join(qmlejobname)
         self.qsonic_qmle_job[1] = QmleJob(
