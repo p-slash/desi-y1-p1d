@@ -468,20 +468,21 @@ class LyspeqJob(Job):
     ):
         super().__init__(settings, section)
         sb_suff = "-sb" if "SB" in section else ""
-        self.jobname = jobname
+
         # Filenames should relative to outdelta_dir
         self.working_dir = os.path.abspath(outdelta_dir)
         self.qmle_settings = dict(settings[section])
         self.qmle_settings['FileInputDir'] = "."
         self.qmle_settings['FileNameList'] = "fname_list.txt"
-        self.qmle_settings['OutputDir'] = "results"
         self.qmle_settings['LookUpTableDir'] = os.path.abspath(
             f"{rootdir}/lookuptables{sb_suff}")
         self.qmle_settings['FileNameRList'] = os.path.abspath(
             f"{rootdir}/specres_list-rmat.txt")
         self.qmle_settings['OutputFileBase'] = self._get_output_fbase(settings, sysopt)
+        self.qmle_settings['OutputDir'] = f"results-{self.qmle_settings['OutputFileBase']}"
 
         self.config_file = f"config-qmle-{self.qmle_settings['OutputFileBase']}.txt"
+        self.jobname = f"{jobname}-{self.qmle_settings['OutputFileBase']}"
 
         self.abspath_configfile = f"{self.working_dir}/{self.config_file}"
         self.abspath_outputdir = f"{self.working_dir}/{self.qmle_settings['OutputDir']}"
@@ -591,10 +592,11 @@ class QmleJob(LyspeqJob):
         script_txt += " \\\n&& ".join(commands) + '\n'
 
         # remove error_logs
+        o = self.qmle_settings['OutputDir']
         script_txt += utils.get_script_text_for_master_node(
-            "if [ $(ls -1 results/error_log*.txt 2>/dev/null | wc -l) -gt 0 ]; "
-            "then cat results/error_log*.txt > results/error_logs_all.txt && "
-            "rm results/error_log*.txt; fi")
+            f"if [ $(ls -1 {o}/error_log*.txt 2>/dev/null | wc -l) -gt 0 ]; "
+            f"then cat {o}/error_log*.txt > {o}/error_logs_all.txt && "
+            f"rm {o}/error_log*.txt; fi")
 
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.working_dir, self.jobname)
