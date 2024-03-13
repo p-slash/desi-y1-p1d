@@ -66,6 +66,8 @@ class OhioQuickquasarsJob(Job):
         self.seed_base = settings.getint('quickquasars', 'base_seed')
         self.env_command = settings['quickquasars']['env_command_qq']
         self.suffix = settings['quickquasars']['suffix']
+        self.exptime_fluxr_catalog = settings.get(
+            'quickquasars', 'exptime_fluxr_catalog', fallback="")
 
         self.exptime = f"{self.nexp}000"
         self.seed = f"{self.seed_base}{self.realization}"
@@ -93,8 +95,12 @@ class OhioQuickquasarsJob(Job):
     def set_sysopt(self):
         sysopt = ""
         OPTS_QQ = (f"--zmin {self.zmin_qq} --zbest --bbflux --seed {self.seed}"
-                   f" --exptime {self.exptime} --save-continuum"
-                   f" --save-continuum-dwave {self.cont_dwave}")
+                   f" --save-continuum --save-continuum-dwave {self.cont_dwave}")
+
+        if self.exptime_fluxr_catalog:
+            OPTS_QQ += f" --from-catalog {self.exptime_fluxr_catalog}"
+        else:
+            OPTS_QQ += f" --exptime {self.exptime}"
 
         if self.dla:
             sysopt += f"{self.dla[0]}1"
