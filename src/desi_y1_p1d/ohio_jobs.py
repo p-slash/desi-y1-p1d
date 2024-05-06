@@ -556,7 +556,7 @@ class QmleJob(LyspeqJob):
 
         bootcovfile = os.path.join(
             self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}_bootstrap_mean_covariance.txt")
+            f"{self.qmle_settings['OutputFileBase']}_bootstrap_mean_fisher_matrix.txt")
         infisherfile = os.path.join(
             self.qmle_settings['OutputDir'],
             f"{self.qmle_settings['OutputFileBase']}_it1_fisher_matrix.txt")
@@ -565,10 +565,10 @@ class QmleJob(LyspeqJob):
             f"{self.qmle_settings['OutputFileBase']}_it1_inversefisher_matrix.txt")
 
         return [
-            f"regularizeBootstrapCov --boot-cov {bootcovfile} "
+            f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
             f"--qmle-fisher {infisherfile} "
             f"--qmle-cov {incovfile} "
-            f"--qmle-sparcity-cut 0 --reg-in-cov "
+            f"--qmle-sparcity-cut 0 "
             f"--fbase {self.qmle_settings['OutputFileBase']}_"]
 
     def create_script(self):
