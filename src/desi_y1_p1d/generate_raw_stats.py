@@ -94,7 +94,7 @@ def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        "--fname-true-power", help="True power file (required)", required=True,
+        "--fname-true-power", help="True power file",
         default=("/global/cfs/cdirs/desicollab/users/"
                  "naimgk/desilite-mocks/true-power-spectrum.bin")
     )
