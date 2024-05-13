@@ -588,14 +588,18 @@ class QmleJob(LyspeqJob):
                        "export OMP_PLACES=threads\n"
                        "export OMP_PROC_BIND=spread\n\n")
 
-        commands = []
+        # commands = []
 
-        commands.append(
+        # commands.append(
+        #     f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
+        #     f"LyaPowerEstimate {self.config_file}")
+        # commands.extend(self.get_bootstrap_commands())
+
+        # script_txt += " \\\n&& ".join(commands) + '\n'
+        script_txt += (
             f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
-            f"LyaPowerEstimate {self.config_file}")
-        commands.extend(self.get_bootstrap_commands())
-
-        script_txt += " \\\n&& ".join(commands) + '\n'
+            f"LyaPowerEstimate {self.config_file}\n"
+            f"# {self.get_bootstrap_commands()}\n")
 
         # remove error_logs
         o = self.qmle_settings['OutputDir']
@@ -667,6 +671,32 @@ class SQJob(LyspeqJob):
             script_txt, self.qmle_settings['LookUpTableDir'], self.jobname)
 
         print(f"SQJob script is saved as {self.submitter_fname}.")
+
+
+class RegCovJob(Job):
+    def __init__(self, rootdeltadir, lyspeq_job):
+        self.name = "regbootcov"
+        self.nodes = 1
+        self.nthreads = 1
+        self.time = 5.
+        self.queue = "shared"
+        self.batch = lyspeq_job.batch
+        self.skip = lyspeq_job.skip
+        self.rootdeltadir
+        self.submitter_fname = None
+
+        self.commands = []
+
+    def addQmleJob(self, qmle_job):
+        self.commands.append(f"cd {qmle_job.working_dir}\n")
+        self.commands.extend(f"{qmle_job.get_bootstrap_commands()}\n")
+
+    def create_directory(self, create_dir=None):
+        pass
+
+    def create_script(self):
+        time_txt = timedelta(minutes=self.time * len(self.commands))
+        raise NotImplementedError
 
 
 class JobChain():
