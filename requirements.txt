@@ -1,1 +1,1 @@
-qsotools@git+https://github.com/p-slash/qsotools.git@v2.5.10
+qsotools@git+https://github.com/p-slash/qsotools.git@v2.5.23
