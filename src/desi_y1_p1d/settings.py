@@ -1,11 +1,11 @@
 from configparser import ConfigParser
-from pkg_resources import resource_filename
+import importlib.resources as imprsrc
 
 
 class OhioMockSettings():
     all_settings = [
-        "y1_iron_v0_nosyst", "y1_iron_v2_allsyst", "y1_iron_v2_nosyst",
-        "y1_iron_v3_nosyst"]
+        _.name[5:-4] for _ in
+        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("mock_*.ini")]
 
     @staticmethod
     def list_available_settings():
@@ -15,10 +15,14 @@ class OhioMockSettings():
 
     def __init__(self, setting):
         assert (setting in OhioMockSettings.all_settings)
-        fname = resource_filename('desi_y1_p1d', f'configs/mock_{setting}.ini')
+
         self.settings = ConfigParser()
         self.settings.optionxform = str
-        self.settings.read(fname)
+
+        with imprsrc.files("desi_y1_p1d").joinpath(
+                "configs", f"mock_{setting}.ini"
+        ).open() as f:
+            self.settings.read_file(f)
 
     def update_from_args(self, args):
         args_dict = vars(args)
@@ -36,8 +40,8 @@ class OhioMockSettings():
 
 class DesiDataSettings():
     all_settings = [
-        "y1_iron_v1_allsyst", "y1_iron_v1p_allsyst", "y1_iron_cmb",
-        "tile_y1_v1_allsyst", "tile_y1_v1_allsyst_calib", "tile_y1_cmb_calib"]
+        _.name[5:-4] for _ in
+        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("data_*.ini")]
 
     @staticmethod
     def list_available_settings():
@@ -47,10 +51,14 @@ class DesiDataSettings():
 
     def __init__(self, setting):
         assert (setting in DesiDataSettings.all_settings)
-        fname = resource_filename('desi_y1_p1d', f'configs/data_{setting}.ini')
+
         parser = ConfigParser()
         parser.optionxform = str
-        parser.read(fname)
+
+        with imprsrc.files("desi_y1_p1d").joinpath(
+                "configs", f"data_{setting}.ini"
+        ).open() as f:
+            parser.read_file(f)
 
         self.settings = ConfigParser()
         self.settings.optionxform = str
@@ -66,7 +74,10 @@ class DesiDataSettings():
                 default_dict[section] = default_section
 
         self.settings.read_dict(default_dict)
-        self.settings.read(fname)
+        with imprsrc.files("desi_y1_p1d").joinpath(
+                "configs", f"data_{setting}.ini"
+        ).open() as f:
+            self.settings.read_file(f)
         self.settings.remove_section("qsonic.default")
         self.settings.remove_section("qmle.default")
 
