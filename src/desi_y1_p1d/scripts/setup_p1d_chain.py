@@ -104,6 +104,8 @@ def get_parser():
     qmle_group.add_argument(
         "--ContinuumLogLambdaMargOrder", type=int,
         help="QMLE continuum marginalization order.")
+    qmle_group.add_argument(
+        "--PrecomputedFisher", help="Precomputed fisher path.")
 
     return parser
 
