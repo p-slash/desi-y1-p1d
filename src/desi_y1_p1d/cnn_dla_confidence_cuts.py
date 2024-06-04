@@ -1,5 +1,6 @@
 import argparse
 import fitsio
+import numpy as np
 
 
 def get_parser():
@@ -8,15 +9,13 @@ def get_parser():
     parser.add_argument("DLA_CAT", help="DLA catalogs")
 
     parser.add_argument(
-        "--cnn-conf-high", help="cnn confidence cut for SNR>cnn-snr-divide",
-        default=0., type=float)
+        "--cnn-conf-cuts", help="cnn confidence cut for SNR list",
+        default=[0.3, 0.0], nargs='+', type=float)
     parser.add_argument(
-        "--cnn-conf-low", help="cnn confidence cut SNR<cnn-snr-divide",
-        default=0.3, type=float)
+        "--cnn-snr-divides", help="cnn snr bounds", nargs='+',
+        default=[0, 3.0], type=float)
     parser.add_argument(
-        "--cnn-snr-divide", help="cnn snr threshold", default=3.0, type=float)
-    parser.add_argument(
-        "--gp-conf", help="gp confidence cut", default=0, type=float)
+        "--gp-conf", help="gp confidence cut", default=0.9, type=float)
     parser.add_argument(
         "--nhi", help="DLA column density", default=20.3, type=float)
 
@@ -42,16 +41,15 @@ def cnn_selection(dla_cat, args):
     else:
         return True
 
-    whigh = (
-        (dla_cat[cnn_conf_dname] > args.cnn_conf_high)
-        & (dla_cat['S2N'] > args.cnn_snr_divide)
-    )
-    wlow = (
-        (dla_cat[cnn_conf_dname] > args.cnn_conf_low)
-        & (dla_cat['S2N'] <= args.cnn_snr_divide)
-    )
+    w = np.zeros(dla_cat.size, dtype=bool)
+    for i, cut in enumerate(args.cnn_conf_cuts):
+        w |= (
+            (dla_cat['S2N'] <= args.cnn_snr_divides[i])
+            & (args.cnn_snr_divides[i + 1] < dla_cat['S2N'])
+            & (dla_cat[cnn_conf_dname] > cut)
+        )
 
-    return whigh | wlow
+    return w
 
 
 def gp_selection(dla_cat, args):
@@ -63,6 +61,7 @@ def gp_selection(dla_cat, args):
 
 def main():
     args = get_parser().parse_args()
+    args.cnn_snr_divides.append(1000)
 
     dla_cat = fitsio.FITS(args.DLA_CAT)[1].read()
 
@@ -80,11 +79,13 @@ def main():
 
     fname_dla_base = get_fname_dla_base(args.DLA_CAT)
 
+    ll = [f"{_:.0f}" for _ in args.cnn_snr_divides[:-1]]
+    txt_snr = "-".join(ll)
+    ll = [f"{_:.1f}" for _ in args.cnn_conf_cuts]
+    txt_conf = "-".join(ll)
     print(f"# DLA in the final catalog {final_dla_catalog.size:d}.")
     fname = (f"{fname_dla_base}"
-             f"-nhi{args.nhi:.1f}-cnnSNR{args.cnn_snr_divide:.1f}"
-             f"-highcut{args.cnn_conf_high:.1f}"
-             f"-lowcut{args.cnn_conf_low:.1f}"
+             f"-nhi{args.nhi:.1f}-cnnSNR{txt_snr}-cnnCONF{txt_conf}"
              f"-gpconf{args.gp_conf:.1f}.fits")
 
     print(f"Saved as {fname}")
