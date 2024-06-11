@@ -300,7 +300,7 @@ class QSOnicJob(Job):
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
-        self.extra_opts = qsonic_settings.get("fit-extra-opts", fallback="")
+        self.extra_opts = qsonic_settings.get("fit_extra_opts", fallback="")
         self.env_command = qsonic_settings['env_command']
         self.tile_format = False
         self.calibfile = qsonic_settings.get("calibration", fallback=None)

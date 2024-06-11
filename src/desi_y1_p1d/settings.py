@@ -145,6 +145,7 @@ def _update_prg_dict(prg, prg_dict, args_dict):
 
     for key in prg_dict.keys():
         arg_key = _map_prgkey_to_argkey(key, prg)
+
         if arg_key not in args_dict:
             continue
 
@@ -157,6 +158,8 @@ def _update_prg_dict(prg, prg_dict, args_dict):
             jj = prg.find('.') + 1
             do_skip = ("all" in args_value) or (prg[jj:] in args_value)
             prg_dict["skip"] = str(do_skip)
+        elif key == "fit_extra_opts":
+            prg_dict[key] += f" {args_value}"
         else:
             prg_dict[key] = str(args_value)
 

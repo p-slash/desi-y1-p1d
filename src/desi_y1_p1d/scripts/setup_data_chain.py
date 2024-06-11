@@ -58,6 +58,8 @@ def get_parser():
         "--cont-order", type=int,
         help="Order of continuum fitting polynomial.")
     qsonic_group.add_argument(
+        "--fit-extra-opts", help="Additional extra options.")
+    qsonic_group.add_argument(
         "--suffix",
         help="suffix for QSOnic reduction if custom parameters are passed.")
     qsonic_group.add_argument(
