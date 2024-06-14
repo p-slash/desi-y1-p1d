@@ -98,13 +98,13 @@ def main():
     for i in range(eta_0.size):
         p = np.polyfit(snr_centers, snr_amp_eta[0, i], 1,
                        w=1 / snr_amp_eta[1, i])
-        eta_0[i] = p[0]
-        eta_1[i] = p[1]
+        eta_1[i] = p[0]
+        eta_0[i] = p[1]
 
         p = np.polyfit(snr_log_c, log_var_lss[i], 1,
                        w=log_var_lss[i] / snr_amp_varlss[1, i])
-        vl_A[i] = np.exp(p[0])
-        vl_beta[i] = p[1]
+        vl_A[i] = np.exp(p[1])
+        vl_beta[i] = p[0]
 
     with fitsio.FITS(args.OUTFILE, 'rw') as fts:
         fts.write(
