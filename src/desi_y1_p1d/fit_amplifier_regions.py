@@ -102,7 +102,7 @@ def main():
         eta_0[i] = p[1]
 
         p = np.polyfit(snr_log_c, log_var_lss[i], 1,
-                       w=log_var_lss[i] / snr_amp_varlss[1, i])
+                       w=snr_amp_varlss[0, i] / snr_amp_varlss[1, i])
         vl_A[i] = np.exp(p[1])
         vl_beta[i] = p[0]
 
