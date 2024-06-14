@@ -294,9 +294,14 @@ class QSOnicJob(Job):
         self.cont_order = qsonic_settings.getint('cont_order')
         self.use_truecont = self.cont_order < 0
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
-        self.fiducial_meanflux = qsonic_settings.get('fiducial_meanflux', fallback=None)
-        self.fiducial_varlss = qsonic_settings.get('fiducial_varlss', fallback=None)
-        self.skip_resomat = qsonic_settings.getboolean('skip_resomat', fallback=False)
+        self.fiducial_meanflux = qsonic_settings.get(
+            'fiducial_meanflux', fallback=None)
+        self.fiducial_varlss = qsonic_settings.get(
+            'fiducial_varlss', fallback=None)
+        self.skip_resomat = qsonic_settings.getboolean(
+            'skip_resomat', fallback=False)
+        self.run_snr_splits = qsonic_settings.getboolean(
+            'run_snr_splits', fallback=False)
         self.dla = qsonic_settings.get("dla-mask", "")
         self.bal = qsonic_settings.getboolean('bal-mask', fallback=False)
         self.sky = qsonic_settings['sky-mask']
@@ -341,6 +346,27 @@ class QSOnicJob(Job):
 
         return self.outdelta_dir
 
+    def getSnrSplitCalibRuns(
+            self, snr_edges=[0.3, 1.0, 1.5, 2.0, 3.0, 5.0, 100.]
+    ):
+        extra_commands = []
+        extra_commands.append(f"mkdir -p snr-splits")
+        for i in range(len(snr_edges) - 1):
+            qsonic_command = (
+                f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\n"
+                f"-i . -o snr-splits --fbase attributes \\\n"
+                f"--min-snr {snr_edges[i]} --max-snr {snr_edges[i + 1]} \\\n"
+                f"--wave1 {self.wave1} --wave2 {self.wave2} --var-use-cov"
+            )
+            extra_commands.append(qsonic_command)
+
+        extra_commands.append(
+            f"fitAmplifierRegions "
+            f"continuum_chi2_catalog.fits "
+            f"snr-splits "
+            f"snr-splits/summary.fits")
+        return extra_commands
+
     def create_script(self):
         """ Creates and writes the script for QSOnic run.
         Sets self.submitter_fname.
@@ -355,14 +381,14 @@ class QSOnicJob(Job):
         script_txt = utils.get_script_header(
             self.outdelta_dir, self.jobname, time_txt, self.nodes, self.queue)
 
+        script_txt += f"cd {self.outdelta_dir}\n\n"
         script_txt += f'{self.env_command}\n\n'
         commands = []
 
         qsonic_command = (
             f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\n"
-            f"-i {self.indir} \\\n"
+            f"-i {self.indir} -o . \\\n"
             f"--catalog {self.catalog} \\\n"
-            f"-o {self.outdelta_dir} \\\n"
             f"--rfdwave 0.8 --skip 0.2 \\\n"
             f"--num-iterations 20 \\\n"
             f"--cont-order {self.cont_order} \\\n"
@@ -396,12 +422,12 @@ class QSOnicJob(Job):
             qsonic_command += f" \\\n{self.extra_opts}"
 
         commands.append(qsonic_command)
-        # commands.append(
-        #     f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\\\n"
-        #     f"-i . -o ./var_stats \\\\\n"
-        #     f"--wave1 {self.wave1} --wave2 {self.wave2}")
 
         script_txt += " \\\n&& ".join(commands) + '\n'
+
+        if self.run_snr_splits:
+            extra_commands = self.getSnrSplitCalibRuns()
+            script_txt += '\n' + "\n\n".join(extra_commands) + '\n'
 
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.outdelta_dir, "qsonic-fit")
