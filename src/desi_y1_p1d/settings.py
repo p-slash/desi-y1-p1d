@@ -112,7 +112,8 @@ _key_map = {
 
     "qsonic": {
         "suffix": "suffix_qsonic",
-        "skip": "skip_qsonics"
+        "skip": "skip_qsonics",
+        "env_command": "env_command_qsonic"
     },
 
     "qmle": {

@@ -65,6 +65,8 @@ def get_parser():
     qsonic_group.add_argument(
         "--skip-qsonics", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3', 'all'],
         help="Skip continuum fitting step for listed forests.")
+    qsonic_group.add_argument(
+        "--env-command-qsonic", help="Different env command for qsonic.")
 
     qmle_group.add_argument(
         "--skip-qmles", nargs="*", choices=['Lya', 'SB1', 'SB2', 'SB3', 'all'],
