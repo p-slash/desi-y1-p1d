@@ -781,7 +781,9 @@ class JobChain():
         if not self.all_jobids:
             return
 
-        utils.submit_script(submitter_fname, self.all_jobids)
+        jobid = utils.submit_script(submitter_fname, self.all_jobids)
+        if jobid != -1:
+            self.all_jobids.append(jobid)
 
     def save_jobids(self):
         if not self.all_jobids:
