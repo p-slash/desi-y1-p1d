@@ -152,4 +152,5 @@ def main(options=None):
         print(f"MockJobChain done for realization {jj+args.rn1}.")
         print("==================================================")
 
+    job_chain.submitExtraCommands(jobname="qq-catalog", queue="regular")
     job_chain.save_jobids()

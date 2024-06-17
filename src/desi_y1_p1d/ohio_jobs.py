@@ -147,6 +147,14 @@ class OhioQuickquasarsJob(Job):
 
         return self.desibase_dir
 
+    def getQqCatalogCommand(self):
+        relpath_to_tr = os.path.relpath(self.desibase_dir, self.transmissions_dir)
+        extra_commands = [
+            f'cd {self.transmissions_dir}',
+            f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}"]
+        script_txt = " \\\n&& ".join(extra_commands) + '\n'
+        return script_txt
+
     def create_script(self):
         """ Creates and writes the script for quickquasars run. Sets self.submitter_fname.
 
@@ -202,8 +210,8 @@ class OhioQuickquasarsJob(Job):
             "wait\n"
             "echo 'END'\n\n")
 
-        script_txt += utils.get_script_text_for_master_node(
-            f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}")
+        # script_txt += utils.get_script_text_for_master_node(
+        #     f"qq-zcatalog {relpath_to_tr}/spectra-16 {relpath_to_tr}")
         self.submitter_fname = utils.save_submit_script(
             script_txt, self.desibase_dir, "quickquasars")
 
@@ -756,17 +764,19 @@ class JobChain():
     def addExtraCommand(self, cmd):
         self.extra_commands.append(cmd)
 
-    def submitExtraCommands(self):
+    def submitExtraCommands(
+            self, jobname="post-completion", queue="shared", time="00:30:00"
+    ):
         if not self.extra_commands:
             return
 
         datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
         script_txt = utils.get_script_header(
-            self.parentdir, "post-completion", "00:30:00", 1, "shared")
+            self.parentdir, "post-completion", time, 1, queue)
         script_txt += "\n\n".join(self.extra_commands) + '\n'
 
         submitter_fname = utils.save_submit_script(
-            script_txt, self.parentdir, f"post-completion-{datestamp}")
+            script_txt, self.parentdir, f"{jobname}-{datestamp}")
 
         if not self.all_jobids:
             return
@@ -857,6 +867,8 @@ class MockJobChain(JobChain):
 
         jobid = self.schedule_job(self.tr_job)
         jobid = self.schedule_job(self.qq_job, jobid)
+
+        self.addExtraCommand(self.qq_job.getQqCatalogCommand())
 
         qsonic_job, qmle_job = self.qsonic_qmle_job
         jobid = self.schedule_job(qsonic_job, jobid)
@@ -1054,4 +1066,4 @@ class DataSplitJobChain(JobChain):
             _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
 
         self.releaseHeldJobs()
-        self.submitExtraCommands()
+        self.submitExtraCommands(jobname="fit-amps")
