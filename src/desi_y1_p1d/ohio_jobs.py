@@ -772,7 +772,7 @@ class JobChain():
 
         datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
         script_txt = utils.get_script_header(
-            self.parentdir, "post-completion", time, 1, queue)
+            self.parentdir, jobname, time, 1, queue)
         script_txt += "\n\n".join(self.extra_commands) + '\n'
 
         submitter_fname = utils.save_submit_script(
