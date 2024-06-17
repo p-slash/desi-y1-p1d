@@ -360,12 +360,16 @@ class QSOnicJob(Job):
             )
             extra_commands.append(qsonic_command)
 
-        extra_commands.append(
-            f"fitAmplifierRegions "
-            f"continuum_chi2_catalog.fits "
-            f"snr-splits "
-            f"snr-splits/summary.fits")
         return extra_commands
+
+    def getfitAmplifierRegionsCommands(self):
+        extra_commands = [
+            f"cd {self.outdelta_dir}",
+            ("fitAmplifierRegions continuum_chi2_catalog.fits "
+             "snr-splits snr-splits/summary.fits")]
+
+        script_txt = " \\\n&& ".join(extra_commands) + '\n'
+        return script_txt
 
     def create_script(self):
         """ Creates and writes the script for QSOnic run.
@@ -730,6 +734,7 @@ class JobChain():
         self.parentdir = parentdir
         self.all_jobids = []
         self.held_jobids = []
+        self.extra_commands = []
 
     def schedule_job(self, job, dep_jobid=None, hold=False):
         jobid = job.schedule(dep_jobid=dep_jobid, hold=hold)
@@ -748,6 +753,26 @@ class JobChain():
         command = f"scontrol release {jobids_txt}"
         print(utils.execute_command(command))
 
+    def addExtraCommand(self, cmd):
+        self.extra_commands.append(cmd)
+
+    def submitExtraCommands(self):
+        if not self.extra_commands:
+            return
+
+        datestamp = datetime.today().strftime('%Y%m%d-%I%M%S%p')
+        script_txt = utils.get_script_header(
+            self.parentdir, "post-completion", "00:30:00", 1, "shared")
+        script_txt += "\n\n".join(self.extra_commands) + '\n'
+
+        submitter_fname = utils.save_submit_script(
+            script_txt, self.parentdir, f"post-completion-{datestamp}")
+
+        if not self.all_jobids:
+            return
+
+        utils.submit_script(submitter_fname, self.all_jobids)
+
     def save_jobids(self):
         if not self.all_jobids:
             return
@@ -759,7 +784,7 @@ class JobChain():
             file.write(jobids_txt)
 
         script_txt = utils.get_script_header(
-            self.parentdir, "summary-job", "00:02:00", 1, "debug")
+            self.parentdir, "summary-job", "00:02:00", 1, "shared")
         script_txt += command
         submitter_fname = utils.save_submit_script(
             script_txt, self.parentdir, f"summary-job-{datestamp}")
@@ -1017,6 +1042,7 @@ class DataSplitJobChain(JobChain):
             qmle_job = self.qmle_jobs[key]
 
             last_qsonic_jobid = self.schedule_job(qsonic_job, last_qsonic_jobid)
+            self.addExtraCommand(qsonic_job.getfitAmplifierRegionsCommands())
 
             sq_key = key[:2]
             sq_job = self.sq_jobs.pop(sq_key, None)
@@ -1028,3 +1054,4 @@ class DataSplitJobChain(JobChain):
             _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
 
         self.releaseHeldJobs()
+        self.submitExtraCommands()

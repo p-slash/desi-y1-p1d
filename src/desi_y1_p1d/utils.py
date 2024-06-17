@@ -41,13 +41,23 @@ def get_folder_structure_data(release, survey, catalog):
     return interm_path
 
 
-def get_script_header(outdir, jobname, time_txt, nodes, queue="regular"):
+def get_script_header(
+        outdir, jobname, time_txt, nodes, queue="regular", ntasks=None
+):
+    if queue == "shared":
+        if ntasks is None:
+            ntasks = 1
+        ntask_line = f"#SBATCH --ntasks={ntasks}\n#SBATCH --cpus-per-task=2\n"
+    else:
+        ntask_line = ""
+
     script_txt = (
         "#!/bin/bash -l\n"
         "#SBATCH -C cpu\n"
         "#SBATCH --account=desi\n"
         f"#SBATCH -q {queue}\n"
         f"#SBATCH --nodes={nodes}\n"
+        f"{ntask_line}"
         f"#SBATCH --time={time_txt}\n"
         f"#SBATCH --job-name={jobname}\n"
         f"#SBATCH --output={outdir}/log-{jobname}-%j.out\n"
