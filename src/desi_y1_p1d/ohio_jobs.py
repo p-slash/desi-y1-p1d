@@ -640,8 +640,7 @@ class QmleJob(LyspeqJob):
         # script_txt += " \\\n&& ".join(commands) + '\n'
         script_txt += (
             f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
-            f"LyaPowerEstimate {self.config_file}\n"
-            f"# {self.get_bootstrap_commands()}\n")
+            f"LyaPowerEstimate {self.config_file}\n")
 
         # remove error_logs
         o = self.qmle_settings['OutputDir']
