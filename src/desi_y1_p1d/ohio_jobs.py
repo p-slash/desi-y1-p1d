@@ -995,6 +995,8 @@ class DataJobChain(JobChain):
             if jobid != 1:
                 self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
+        self.submitExtraCommands(jobname="bootstrap")
+
 
 class DataSplitJobChain(JobChain):
     def __init__(self, delta_dir, settings):
