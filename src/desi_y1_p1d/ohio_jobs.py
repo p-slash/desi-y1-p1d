@@ -602,12 +602,16 @@ class QmleJob(LyspeqJob):
             self.qmle_settings['OutputDir'],
             f"{self.qmle_settings['OutputFileBase']}_it1_inversefisher_matrix.txt")
 
-        return [
-            f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
-            f"--qmle-fisher {infisherfile} "
-            f"--qmle-cov {incovfile} "
-            f"--qmle-sparcity-cut 0 "
-            f"--fbase {self.qmle_settings['OutputFileBase']}_"]
+        extra_commands = [
+            f"cd {self.working_dir}",
+            (f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
+             f"--qmle-fisher {infisherfile} "
+             f"--qmle-cov {incovfile} "
+             f"--qmle-sparcity-cut 0 "
+             f"--fbase {self.qmle_settings['OutputFileBase']}_")]
+
+        script_txt = " \\\n&& ".join(extra_commands) + '\n'
+        return script_txt
 
     def create_script(self):
         self.create_config()
@@ -870,11 +874,15 @@ class MockJobChain(JobChain):
         jobid = self.schedule_job(self.tr_job)
         jobid = self.schedule_job(self.qq_job, jobid)
 
-        self.addExtraCommand(self.qq_job.getQqCatalogCommand())
+        if jobid != -1:
+            self.addExtraCommand(self.qq_job.getQqCatalogCommand())
 
         qsonic_job, qmle_job = self.qsonic_qmle_job
         jobid = self.schedule_job(qsonic_job, jobid)
-        _ = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
+        jobid = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
+
+        if jobid != 1:
+            self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
     def inc_realization(self, is_last):
         if is_last:
@@ -983,7 +991,9 @@ class DataJobChain(JobChain):
 
             jobid_sq = sq_jobids.get(sq_key, -1)
 
-            _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+            jobid = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+            if jobid != 1:
+                self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
 
 class DataSplitJobChain(JobChain):
@@ -1056,7 +1066,8 @@ class DataSplitJobChain(JobChain):
             qmle_job = self.qmle_jobs[key]
 
             last_qsonic_jobid = self.schedule_job(qsonic_job, last_qsonic_jobid)
-            self.addExtraCommand(qsonic_job.getfitAmplifierRegionsCommands())
+            if last_qsonic_jobid != -1:
+                self.addExtraCommand(qsonic_job.getfitAmplifierRegionsCommands())
 
             sq_key = key[:2]
             sq_job = self.sq_jobs.pop(sq_key, None)
