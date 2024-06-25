@@ -607,7 +607,7 @@ class QmleJob(LyspeqJob):
             (f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
              f"--qmle-fisher {infisherfile} "
              f"--qmle-cov {incovfile} "
-             f"--qmle-sparcity-cut 0 "
+             f"--qmle-sparcity-cut 0 --nz {self.qmle_settings['NumberOfRedshiftBins']} "
              f"--fbase {self.qmle_settings['OutputFileBase']}_")]
 
         script_txt = " \\\n&& ".join(extra_commands) + '\n'
