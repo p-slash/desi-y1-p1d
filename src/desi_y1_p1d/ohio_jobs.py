@@ -579,8 +579,8 @@ class LyspeqJob(Job):
             return
 
         omitted_keys = [
-            "nodes", "nthreads", "batch", "skip", "time", "queue", "env_command",
-        ]
+            "nodes", "nthreads", "batch", "skip", "time", "queue",
+            "env_command"]
         config_lines = [
             f"{key} {value}\n"
             for key, value in self.qmle_settings.items()
@@ -599,22 +599,24 @@ class QmleJob(LyspeqJob):
         if not save_boots:
             return []
 
+        obase = self.qmle_settings['OutputFileBase']
         bootcovfile = os.path.join(
             self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}_bootstrap_mean_fisher_matrix.txt")
+            f"{obase}_bootstrap_mean_fisher_matrix.txt")
         infisherfile = os.path.join(
             self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}_it1_fisher_matrix.txt")
+            f"{obase}_it1_fisher_matrix.txt")
         incovfile = os.path.join(
             self.qmle_settings['OutputDir'],
-            f"{self.qmle_settings['OutputFileBase']}_it1_inversefisher_matrix.txt")
+            f"{obase}_it1_inversefisher_matrix.txt")
 
         extra_commands = [
             f"cd {self.working_dir}",
             (f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
              f"--qmle-fisher {infisherfile} "
              f"--qmle-cov {incovfile} "
-             f"--qmle-sparcity-cut 0 --nz {self.qmle_settings['NumberOfRedshiftBins']} "
+             f"--qmle-sparcity-cut 0 "
+             f"--nz {self.qmle_settings['NumberOfRedshiftBins']} "
              f"--fbase {self.qmle_settings['OutputFileBase']}_")]
 
         script_txt = " \\\n&& ".join(extra_commands) + '\n'
@@ -637,17 +639,9 @@ class QmleJob(LyspeqJob):
                        "export OMP_PLACES=threads\n"
                        "export OMP_PROC_BIND=spread\n\n")
 
-        # commands = []
-
-        # commands.append(
-        #     f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
-        #     f"LyaPowerEstimate {self.config_file}")
-        # commands.extend(self.get_bootstrap_commands())
-
-        # script_txt += " \\\n&& ".join(commands) + '\n'
         script_txt += (
-            f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} --cpu_bind=cores "
-            f"LyaPowerEstimate {self.config_file}\n")
+            f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} "
+            f"--cpu_bind=cores LyaPowerEstimate {self.config_file}\n")
 
         # remove error_logs
         o = self.qmle_settings['OutputDir']
@@ -664,10 +658,12 @@ class QmleJob(LyspeqJob):
     def needs_sqjob(self):
         files_exits = True
         files_exits &= os.path.exists(
-            f"{self.qmle_settings['LookUpTableDir']}/signal_R1000000_dv0.1.dat")
+            f"{self.qmle_settings['LookUpTableDir']}/signal_R1000000_dv0.1.dat"
+        )
 
         deriv_files = glob.glob(
-            f"{self.qmle_settings['LookUpTableDir']}/deriv_R1000000_dv0.1*.dat")
+            f"{self.qmle_settings['LookUpTableDir']}/deriv_R1000000_dv0.1*.dat"
+        )
         expected_nk = (
             int(self.qmle_settings.get("NumberOfLinearBins"))
             + int(self.qmle_settings.get("NumberOfLog10Bins")))
@@ -684,6 +680,83 @@ class QmleJob(LyspeqJob):
 
         script_txt = (
             'if [[ ! -f "' + self.qmle_settings['FileNameList'] + '" ]]; then\n'
+            f"    {script_txt}\n"
+            "fi\n\n")
+
+        return script_txt
+
+
+class XeQmleJob(QmleJob):
+    def get_bootstrap_commands(self):
+        save_boots = int(self.qmle_settings['NumberOfBoots']) > 0
+        if not save_boots:
+            return []
+
+        obase = self.qmle_settings['OutputFileBase']
+        bootcovfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{obase}_bootstrap_mean_fisher_matrix.txt")
+        infisherfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{obase}_it1_fisher_matrix.txt")
+        incovfile = os.path.join(
+            self.qmle_settings['OutputDir'],
+            f"{obase}_it1_inversefisher_matrix.txt")
+
+        extra_commands = [
+            f"cd {self.working_dir}",
+            (f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
+             f"--qmle-fisher {infisherfile} "
+             f"--qmle-cov {incovfile} "
+             "--qmle-sparcity-cut 0 "
+             f"--nz {self.qmle_settings['NumberOfRedshiftBins']} "
+             f"--fbase {self.qmle_settings['OutputFileBase']}_")]
+
+        script_txt = " \\\n&& ".join(extra_commands) + '\n'
+        return script_txt
+
+    def create_script(self):
+        self.create_config()
+
+        time_txt = timedelta(minutes=self.time)
+
+        script_txt = utils.get_script_header(
+            self.abspath_outputdir, self.jobname,
+            time_txt, self.nodes, self.queue)
+        cpus_pt = 256 // (self.nthreads // self.nodes)
+
+        script_txt += f"cd {self.working_dir}\n\n"
+        script_txt += self.get_filelist_script_txt()
+        script_txt += f"{self.qmle_settings['env_command']}\n\n"
+        script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
+                       "export OMP_PLACES=threads\n"
+                       "export OMP_PROC_BIND=spread\n\n")
+
+        script_txt += (
+            f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} "
+            f"--cpu_bind=cores LyaPowerxQmlExposure {self.config_file}\n")
+
+        # remove error_logs
+        o = self.qmle_settings['OutputDir']
+        script_txt += utils.get_script_text_for_master_node(
+            f"if [ $(ls -1 {o}/error_log*.txt 2>/dev/null | wc -l) -gt 0 ]; "
+            f"then cat {o}/error_log*.txt > {o}/all_error_logs.txt && "
+            f"rm {o}/error_log*.txt; fi")
+
+        self.submitter_fname = utils.save_submit_script(
+            script_txt, self.working_dir, self.jobname)
+
+        print(f"QmleJob script is saved as {self.submitter_fname}.")
+
+    def get_filelist_script_txt(self):
+        self.qmle_settings['FileNameList'] = "fname_list_xe.txt"
+        script_txt = " && ".join([
+            f"ls -1 delta-*.fits* | wc -l > fname_list_xe.txt",
+            f"ls -1 delta-*.fits* >> fname_list_xe.txt",
+        ])
+
+        script_txt = (
+            'if [[ ! -f "fname_list_xe.txt" ]]; then\n'
             f"    {script_txt}\n"
             "fi\n\n")
 
@@ -916,7 +989,8 @@ class DataJobChain(JobChain):
         super().__init__(delta_dir)
 
         desi_settings = settings['desi']
-        qsonic_sections = [x for x in settings.sections() if x.startswith("qsonic.")]
+        qsonic_sections = [
+            x for x in settings.sections() if x.startswith("qsonic.")]
 
         self.qsonic_jobs = {}
         self.qmle_jobs = {}
@@ -926,7 +1000,13 @@ class DataJobChain(JobChain):
 
             self.qsonic_jobs[forest] = QSOnicDataJob(
                 delta_dir, forest, desi_settings, settings, qsection)
-            self.qmle_jobs[forest] = QmleJob(
+
+            if self.qsonic_jobs[forest].exposures:
+                WhichQmleJob = XeQmleJob
+            else:
+                WhichQmleJob = QmleJob
+
+            self.qmle_jobs[forest] = WhichQmleJob(
                 delta_dir, self.qsonic_jobs[forest].outdelta_dir,
                 sysopt=None, settings=settings, section=f"qmle.{forest}",
                 jobname=f"qmle-{forest}")
