@@ -1019,23 +1019,6 @@ class DataJobChain(JobChain):
                     sysopt=None, settings=settings, section=f"qmle.{forest}",
                     jobname=f"sq-job-{forest}")
 
-        calib_forests = list(self.qsonic_jobs.keys())
-        ckey = max(calib_forests)
-        calibfile = f"{self.qsonic_jobs[ckey].outdelta_dir}/attributes.fits"
-        for cf in calib_forests:
-            forest = f"{cf}Calib"
-            qsection = f"qsonic.{cf}"
-
-            self.qsonic_jobs[forest] = QSOnicDataJob(
-                delta_dir, forest, desi_settings, settings, qsection)
-            self.qsonic_jobs[forest].extra_opts += (
-                f" \\\n--noise-calibration {calibfile}"
-                f" \\\n--flux-calibration {calibfile}")
-            self.qmle_jobs[forest] = QmleJob(
-                delta_dir, self.qsonic_jobs[forest].outdelta_dir,
-                sysopt=None, settings=settings, section=f"qmle.{cf}",
-                jobname=f"qmle-{forest}")
-
     def setup(self):
         for job in self.qsonic_jobs.values():
             job.setup()
@@ -1044,7 +1027,7 @@ class DataJobChain(JobChain):
         for job in self.sq_jobs.values():
             job.setup()
 
-    def schedule(self, keys_to_run=[], no_calib_run=True):
+    def schedule(self, keys_to_run=[]):
         sq_jobids = {}
         last_qsonic_jobid = None
 
@@ -1053,16 +1036,13 @@ class DataJobChain(JobChain):
         # Make sure LyaCalib runs last
         forests = list(self.qsonic_jobs.keys())
 
-        if no_calib_run:
-            forests = [x for x in forests if not x.endswith("Calib")]
-
         if keys_to_run:
             keys_to_run = set(keys_to_run)
             assert all(_ in forests for _ in keys_to_run)
 
             forests = list(keys_to_run)
 
-        forests.sort(key=lambda x: (x.endswith("Calib"), x))
+        forests.sort()
 
         for forest in forests:
             qsonic_job = self.qsonic_jobs[forest]

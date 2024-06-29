@@ -3,9 +3,9 @@ import importlib.resources as imprsrc
 
 
 class OhioMockSettings():
-    all_settings = [
+    all_settings = sorted([
         _.name[5:-4] for _ in
-        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("mock_*.ini")]
+        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("mock_*.ini")])
 
     @staticmethod
     def list_available_settings():
@@ -39,9 +39,9 @@ class OhioMockSettings():
 
 
 class DesiDataSettings():
-    all_settings = [
+    all_settings = sorted([
         _.name[5:-4] for _ in
-        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("data_*.ini")]
+        imprsrc.files("desi_y1_p1d").joinpath("configs").glob("data_*.ini")])
 
     @staticmethod
     def list_available_settings():
