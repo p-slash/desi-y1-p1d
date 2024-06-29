@@ -302,6 +302,9 @@ class QSOnicJob(Job):
         self.cont_order = qsonic_settings.getint('cont_order')
         self.use_truecont = self.cont_order < 0
         self.coadd_arms = qsonic_settings.get('coadd_arms', fallback="before")
+        self.exposures = qsonic_settings.get('exposures', fallback="")
+        self.rfdwave = qsonic_settings.getfloat('rfdwave', fallback=0.8)
+        self.arms = qsonic_settings.get('arms', fallback="")
         self.fiducial_meanflux = qsonic_settings.get(
             'fiducial_meanflux', fallback=None)
         self.fiducial_varlss = qsonic_settings.get(
@@ -401,12 +404,16 @@ class QSOnicJob(Job):
             f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\n"
             f"-i {self.indir} -o . \\\n"
             f"--catalog {self.catalog} \\\n"
-            f"--rfdwave 0.8 --skip 0.2 \\\n"
+            f"--rfdwave {self.rfdwave} --skip 0.2 \\\n"
             f"--num-iterations 20 \\\n"
             f"--cont-order {self.cont_order} \\\n"
             f"--wave1 {self.wave1} --wave2 {self.wave2} \\\n"
             f"--forest-w1 {self.forest_w1} --forest-w2 {self.forest_w2}")
 
+        if self.arms:
+            qsonic_command += f" \\\n--arms {self.arms}"
+        if self.exposures:
+            qsonic_command += f" \\\n--exposures {self.exposures}"
         if self.is_mock:
             qsonic_command += " \\\n--mock-analysis"
             if self.use_truecont:
