@@ -960,7 +960,7 @@ class MockJobChain(JobChain):
         jobid = self.schedule_job(qsonic_job, jobid)
         jobid = self.schedule_job(qmle_job, [jobid, self.sq_jobid])
 
-        if jobid != 1:
+        if jobid != -1:
             self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
     def inc_realization(self, is_last):
@@ -1058,7 +1058,7 @@ class DataJobChain(JobChain):
             jobid_sq = sq_jobids.get(sq_key, -1)
 
             jobid = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
-            if jobid != 1:
+            if jobid != -1:
                 self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
         self.submitExtraCommands(jobname="bootstrap")
