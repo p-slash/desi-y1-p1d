@@ -360,12 +360,13 @@ class QSOnicJob(Job):
     def getSnrSplitCalibRuns(
             self, snr_edges=[0.3, 1.0, 1.5, 2.0, 3.0, 5.0, 100.]
     ):
+        cpus_pt = 256 // (self.nthreads // self.nodes)
         extra_commands = []
         extra_commands.append(f"mkdir -p snr-splits")
         for i in range(len(snr_edges) - 1):
             qsonic_command = (
-                f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-calib \\\n"
-                f"-i . -o snr-splits --fbase attributes \\\n"
+                f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} "
+                f"qsonic-calib \\\n-i . -o snr-splits --fbase attributes \\\n"
                 f"--min-snr {snr_edges[i]} --max-snr {snr_edges[i + 1]} \\\n"
                 f"--wave1 {self.wave1} --wave2 {self.wave2} --var-use-cov"
             )
@@ -398,11 +399,15 @@ class QSOnicJob(Job):
 
         script_txt += f"cd {self.outdelta_dir}\n\n"
         script_txt += f'{self.env_command}\n\n'
-        commands = []
+        cpus_pt = 256 // (self.nthreads // self.nodes)
+        script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
+                       "export OMP_PLACES=threads\n"
+                       "export OMP_PROC_BIND=spread\n\n")
 
+        commands = []
         qsonic_command = (
-            f"srun -N {self.nodes} -n {self.nthreads} -c 2 qsonic-fit \\\n"
-            f"-i {self.indir} -o . \\\n"
+            f"srun -N {self.nodes} -n {self.nthreads} -c {cpus_pt} "
+            f"qsonic-fit \\\n-i {self.indir} -o . \\\n"
             f"--catalog {self.catalog} \\\n"
             f"--rfdwave {self.rfdwave} --skip 0.2 \\\n"
             f"--num-iterations 20 \\\n"
