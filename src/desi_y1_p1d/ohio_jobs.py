@@ -716,6 +716,7 @@ class XeQmleJob(QmleJob):
         return script_txt
 
     def create_script(self):
+        self.qmle_settings['FileNameList'] = "fname_list_xe.txt"
         self.create_config()
 
         time_txt = timedelta(minutes=self.time)
@@ -749,7 +750,6 @@ class XeQmleJob(QmleJob):
         print(f"QmleJob script is saved as {self.submitter_fname}.")
 
     def get_filelist_script_txt(self):
-        self.qmle_settings['FileNameList'] = "fname_list_xe.txt"
         script_txt = " && ".join([
             f"ls -1 delta-*.fits* | wc -l > fname_list_xe.txt",
             f"ls -1 delta-*.fits* >> fname_list_xe.txt",
