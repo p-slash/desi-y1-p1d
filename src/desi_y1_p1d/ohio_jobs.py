@@ -400,9 +400,9 @@ class QSOnicJob(Job):
         script_txt += f"cd {self.outdelta_dir}\n\n"
         script_txt += f'{self.env_command}\n\n'
         cpus_pt = 256 // (self.nthreads // self.nodes)
-        script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
-                       "export OMP_PLACES=threads\n"
-                       "export OMP_PROC_BIND=spread\n\n")
+        # script_txt += (f"export OMP_NUM_THREADS={cpus_pt}\n"
+        #                "export OMP_PLACES=threads\n"
+        #                "export OMP_PROC_BIND=spread\n\n")
 
         commands = []
         qsonic_command = (
