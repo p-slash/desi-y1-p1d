@@ -1149,7 +1149,9 @@ class DataSplitJobChain(JobChain):
 
             jobid_sq = sq_jobids.get(sq_key, -1)
 
-            _ = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+            jobid = self.schedule_job(qmle_job, [last_qsonic_jobid, jobid_sq])
+            if jobid != -1:
+                self.addExtraCommand(qmle_job.get_bootstrap_commands())
 
         self.releaseHeldJobs()
         self.submitExtraCommands(jobname="fit-amps")
