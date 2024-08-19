@@ -620,7 +620,7 @@ class QmleJob(LyspeqJob):
             (f"regularizeBootstrapCov --boot-matrix {bootcovfile} "
              f"--qmle-fisher {infisherfile} "
              f"--qmle-cov {incovfile} "
-             f"--qmle-sparcity-cut 0 "
+             f"--qmle-sparcity-cut 0 --force-posdef-diff "
              f"--nz {self.qmle_settings['NumberOfRedshiftBins']} "
              f"--fbase {self.qmle_settings['OutputFileBase']}_")]
 
