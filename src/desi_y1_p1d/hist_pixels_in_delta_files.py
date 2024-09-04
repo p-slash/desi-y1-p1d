@@ -117,14 +117,12 @@ def main():
     zqso_hist = np.zeros(meanflux_hist.nz + 2)
     meansnr_hist = np.zeros(args.nsnr)
 
-    Pcounter = qutil.Progress(nfiles, 1)
     with Pool(processes=args.nproc) as pool:
         imap_it = pool.imap(CalculateStats(args, config_qmle), fnames_spectra)
         for mfh, zqh, msnrh in tqdm(imap_it, total=nfiles):
             meanflux_hist += mfh
             zqso_hist += zqh
             meansnr_hist += msnrh
-            Pcounter.increase()
 
     meanflux_hist.getMeanStatistics(compute_scatter=True)
     meanflux_hist.saveHistograms(output_base)
