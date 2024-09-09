@@ -92,7 +92,7 @@ class Reducer():
         logging.info(f"Unique targetid in truth {np.unique(targetids).size}")
 
         self.truth_wave = simspec_hdu['WAVE'].read()
-        self.truth_flux = simspec_hdu['FLUX'].read()
+        self.truth_flux = simspec_hdu['FLUX_TRUE'].read()
         self.truth_zqso = simspec_hdu['TRUTH']['REDSHIFT'].read()
         simspec_hdu.close()
 
@@ -139,10 +139,10 @@ class Reducer():
                 # Short chunk
                 continue
 
-            cont_interp = interp1d(self.truth_wave, self.truth_flux[jj])
-
+            # cont_interp = interp1d(self.truth_wave, self.truth_flux[jj])
+            # cont = cont_interp(wave)
+            cont = np.interp(wave, self.truth_wave, self.truth_flux[jj])
             z = wave / fid.LYA_WAVELENGTH - 1
-            cont = cont_interp(wave)
 
             flux = coadd_data['flux'][i][forest_pixels] / cont
             ivar = coadd_data['ivar'][i][forest_pixels] * cont**2
