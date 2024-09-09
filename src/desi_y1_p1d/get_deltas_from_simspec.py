@@ -47,10 +47,10 @@ def saveDelta(
     R_kms = 0.1
 
     hdr_dict = {
-        'TARGETID': thid, 'RA': np.radians(ra), 'DEC': np.radians(dec), 'Z': float(z_qso),
-        'MEANZ': np.mean(wave) / fid.LYA_WAVELENGTH - 1, 'MEANRESO': R_kms,
-        'MEANSNR': np.mean(np.sqrt(data['IVAR'])), 'LIN_BIN': True,
-        'DLAMBDA': np.median(np.diff(wave))
+        'TARGETID': thid, 'RA': np.radians(ra), 'DEC': np.radians(dec),
+        'Z': float(z_qso), 'MEANZ': np.mean(wave) / fid.LYA_WAVELENGTH - 1,
+        'MEANRESO': R_kms, 'MEANSNR': np.mean(np.sqrt(data['IVAR'])),
+        'LIN_BIN': True, 'DLAMBDA': np.median(np.diff(wave))
     }
 
     fdelta.write(data, header=hdr_dict)
@@ -72,7 +72,8 @@ def read_coadd_into_dict(cfile):
     targetids = data['fibermap'][data['qso_idx']]['TARGETID']
 
     logging.info(f"Number of QSO in simulated coadd {data['qso_idx'].size}")
-    logging.info(f"Unique targetid in simulated coadd {np.unique(targetids).size}")
+    logging.info(
+        f"Unique targetid in simulated coadd {np.unique(targetids).size}")
 
     return data
 
@@ -82,7 +83,8 @@ class Reducer():
         self.args = args
         simspec_hdu = fitsio.FITS(args.simspec_truth)
         self.truth_fibermap = simspec_hdu['FIBERMAP'].read()
-        self.truth_qso_idx = np.where(self.truth_fibermap['OBJTYPE'] == 'QSO')[0]
+        self.truth_qso_idx = np.where(
+            self.truth_fibermap['OBJTYPE'] == 'QSO')[0]
 
         targetids = self.truth_fibermap[self.truth_qso_idx]['TARGETID']
 
@@ -118,7 +120,8 @@ class Reducer():
 
             # cut out forest, but do not remove masked pixels individually
             # resolution matrix assumes all pixels to be present
-            forest_pixels = getForestAnalysisRegion(coadd_data['wave'], z_qso, self.args)
+            forest_pixels = getForestAnalysisRegion(
+                coadd_data['wave'], z_qso, self.args)
             remaining_pixels = forest_pixels
 
             if np.sum(remaining_pixels) < 15:
@@ -129,7 +132,9 @@ class Reducer():
             dlambda = np.mean(np.diff(wave))
 
             # Skip short chunks
-            MAX_NO_PIXELS = int((fid.LYA_LAST_WVL - fid.LYA_FIRST_WVL) * (1 + z_qso) / dlambda)
+            MAX_NO_PIXELS = int(
+                (fid.LYA_LAST_WVL - fid.LYA_FIRST_WVL) * (1 + z_qso) / dlambda
+            )
             if self.args.skip and (np.sum(remaining_pixels) < MAX_NO_PIXELS * self.args.skip):
                 # Short chunk
                 continue
@@ -140,11 +145,12 @@ class Reducer():
             cont = cont_interp(wave)
 
             flux = coadd_data['flux'][i][forest_pixels] / cont
-            ivar = 1e4 * cont**2
-            # coadd_data['ivar'][i][forest_pixels] * cont**2
+            ivar = coadd_data['ivar'][i][forest_pixels] * cont**2
+            rmat = coadd_data['reso'][i][:, forest_pixels]
             # mask = coadd_mask[i][forest_pixels] - buggy
             # Cut rmat forest region, but keep individual bad pixel values in
-            rmat = np.ones_like(flux.size)
+            # ivar = 1e4 * cont**2
+            # rmat = np.ones_like(flux.size)
             # np.delete(coadd_data['reso'][i], ~forest_pixels, axis=1)
 
             # Make it delta
