@@ -4,7 +4,7 @@ from os import makedirs as os_makedirs
 
 import fitsio
 import numpy as np
-from scipy.interpolate import interp1d
+# from scipy.interpolate import interp1d
 
 import qsotools.fiducial as fid
 from qsotools.mocklib import lognMeanFluxGH as TRUE_MEAN_FLUX
@@ -145,12 +145,12 @@ class Reducer():
             z = wave / fid.LYA_WAVELENGTH - 1
 
             flux = coadd_data['flux'][i][forest_pixels] / cont
-            ivar = coadd_data['ivar'][i][forest_pixels] * cont**2
-            rmat = coadd_data['reso'][i][:, forest_pixels]
+            # ivar = coadd_data['ivar'][i][forest_pixels] * cont**2
+            # rmat = coadd_data['reso'][i][:, forest_pixels]
             # mask = coadd_mask[i][forest_pixels] - buggy
             # Cut rmat forest region, but keep individual bad pixel values in
-            # ivar = 1e4 * cont**2
-            # rmat = np.ones_like(flux.size)
+            ivar = 1e4 * cont**2
+            rmat = np.ones_like(flux.size)
             # np.delete(coadd_data['reso'][i], ~forest_pixels, axis=1)
 
             # Make it delta
