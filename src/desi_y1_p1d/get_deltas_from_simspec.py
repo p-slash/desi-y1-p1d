@@ -125,4 +125,4 @@ def main():
     os_makedirs(args.outputdir, exist_ok=True)
     reducer = Reducer(args)
 
-    reducer(args.simspec_wforest)
+    reducer()
