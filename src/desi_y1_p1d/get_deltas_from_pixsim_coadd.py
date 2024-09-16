@@ -61,10 +61,11 @@ def saveDelta(
     data['IVAR'] = ivar
     data['CONT'] = cont
     data['MEANF'] = meanf
-    data['RESOMAT'] = rmat.T
     if ndiags > 1:
+        data['RESOMAT'] = rmat.T
         R_kms = fitGaussian2RMat(thid, wave, rmat)
     else:
+        data['RESOMAT'] = rmat[0]
         R_kms = 0.1
 
     hdr_dict = {
