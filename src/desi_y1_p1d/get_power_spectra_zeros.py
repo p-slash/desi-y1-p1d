@@ -14,7 +14,7 @@ def parse(options=None):
     parser.add_argument("--infiles", help="Input preproc zeros", nargs="+")
     parser.add_argument(
         "--outdir", help="Directory for to save.")
-    parser.add_argument("--nslice", type=int, default=512)
+    parser.add_argument("--nslice", type=int, default=1024)
     parser.add_argument("--mpad", type=int, default=2, help="padding factor")
     parser.add_argument("--mdown", type=int, default=4, help="downsample")
     parser.add_argument("--save-images", action="store_true")
@@ -60,22 +60,23 @@ def save_power_image(kplist, n, title, fname):
     k = kplist[0]
     i1, i2 = np.searchsorted(k, [1e-1, 1.0])
     nrow = len(kplist) - 1
-    ncol = 2
+    ncol = 4
     nrow = nrow // ncol
     fig, axs = plt.subplots(
-        nrow, ncol, figsize=(24, 3 * nrow),
+        nrow, ncol, figsize=(6 * ncol, 2.4 * nrow),
         sharex='all', gridspec_kw={'hspace': 0, 'wspace': 0.1})
     fig.suptitle(title, fontsize=16)
     for i, p in enumerate(kplist[1:]):
-        r = i // 2
-        c = i % 2
-        s = "AB" if c == 0 else "CD"
-        if r * n < 2048:
+        r = i // ncol
+        c = i % ncol
+        s = "AB" if i % 2 == 0 else "CD"
+        pix = (i // 2) * n
+        if pix < 2048:
             s = s[0]
         else:
             s = s[1]
         dat = p[i1:i2]
-        axs[r, c].plot(k[i1:i2], dat, '.-', label=f"{s}-{r * n}:{(r + 1) * n}")
+        axs[r, c].plot(k[i1:i2], dat, '.-', label=f"{s}-{pix}:{pix + n}")
         axs[r, c].legend(fontsize="x-large")
         mean, std = dat.mean(), dat.std()
         axs[r, c].axhline(mean, c='k')
@@ -83,12 +84,12 @@ def save_power_image(kplist, n, title, fname):
         # y1, y2 = np.min(p[i1:i2]), np.max(p[i1:i2])
         # axs[r, c].set_ylim(y1 * 0.95, y2 * 1.05)
         axs[r, c].grid()
-        axs[r, c].set_ylabel("P [A]", fontsize=14)
 
-    axs[-1, 0].set_xlabel("k [1 / A]", fontsize=14)
-    axs[-1, 1].set_xlabel("k [1 / A]", fontsize=14)
-    axs[-1, 0].set_xlim(1e-1, 1)
-    axs[-1, 1].set_xlim(1e-1, 1)
+    for ax in axs[-1, :]:
+        ax.set_xlabel("k [1 / A]", fontsize=14)
+        ax.set_xlim(1e-1, 1)
+    for ax in axs[:, 0]:
+        ax.set_ylabel("P [A]", fontsize=14)
     plt.savefig(fname, dpi=150, bbox_inches='tight')
     plt.close()
 
