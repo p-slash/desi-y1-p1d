@@ -28,7 +28,10 @@ def _readSpectrum(hdu):
     delta = data[delta_keys.intersection(colnames).pop()]
     error = 1 / np.sqrt(data['IVAR'] + 1e-16)
     error[data['IVAR'] < 1e-4] = 0
-    weight = data['WEIGHT']
+    if "WEIGHT" in data.dtype.names:
+        weight = data['WEIGHT']
+    else:
+        weight = data['IVAR']
 
     specres = fid.LIGHT_SPEED / hdr['MEANRESO'] / fid.ONE_SIGMA_2_FWHM
     if 'DLL' in hdr.keys():
