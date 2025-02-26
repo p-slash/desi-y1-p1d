@@ -62,6 +62,7 @@ class CalculateStats():
         self.local_zqso_hist = np.zeros(self.local_meanflux_hist.nz + 2)
         self.local_meansnr_hist = np.zeros(args.nsnr)
         self.dsnr = args.dsnr
+        self.no_weights = args.no_weights
         self.fdelta = None
 
     def __call__(self, fnames):
@@ -70,6 +71,8 @@ class CalculateStats():
         pfile = PiccaFile(f, 'r')
         for hdu in hdus:
             qso, weight, meansnr = _readSpectrum(pfile.fitsfile[hdu])
+            if self.no_weights:
+                weight = 1
             self.local_meanflux_hist.addSpectrum(
                 qso, weight, f1=0, f2=9000, compute_scatter=True)
             self._find_zqso_indx(qso.z_qso)
@@ -93,6 +96,9 @@ def main():
         "--nsnr", help="number of snr bins", default=100, type=int)
     parser.add_argument("--dsnr", help="snr bin size", default=0.1, type=float)
     parser.add_argument("--fbase", help="Basename", default="histogram")
+    parser.add_argument(
+        "--no-weights", help="Disable weighting. Useful for mean flux",
+        action="store_true")
     parser.add_argument("--nproc", type=int, default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
